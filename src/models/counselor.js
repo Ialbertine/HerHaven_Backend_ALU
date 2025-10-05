@@ -1,0 +1,178 @@
+const mongoose = require('mongoose');
+const argon2 = require('argon2');
+
+const counselorSchema = new mongoose.Schema({
+  // Basic user info (inherits from User model)
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true
+  },
+  password: {
+    type: String,
+    required: true,
+    minlength: 6
+  },
+  username: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    minlength: 3,
+    maxlength: 30,
+    match: /^[a-zA-Z0-9_]+$/
+  },
+
+  // Professional information
+  firstName: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  lastName: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  phoneNumber: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  licenseNumber: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
+  specialization: {
+    type: String,
+    required: true,
+    enum: [
+      'Trauma Counseling',
+      'Crisis Intervention',
+      'Domestic Violence',
+      'Sexual Assault',
+      'Mental Health',
+      'Family Counseling',
+      'Child Psychology',
+      'Substance Abuse',
+      'General Counseling'
+    ]
+  },
+  experience: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  bio: {
+    type: String,
+    maxlength: 500,
+    trim: true
+  },
+
+  // Verification and status
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  verificationStatus: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending'
+  },
+
+  // Admin approval tracking
+  adminApprovedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  adminApprovedAt: {
+    type: Date
+  },
+  rejectionReason: {
+    type: String,
+    trim: true
+  },
+
+  // Activity tracking
+  lastLogin: {
+    type: Date
+  },
+  loginAttempts: {
+    type: Number,
+    default: 0
+  },
+  lockUntil: {
+    type: Date
+  },
+
+  // Professional metrics
+  totalSessions: {
+    type: Number,
+    default: 0
+  },
+  averageRating: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 5
+  },
+  isAvailable: {
+    type: Boolean,
+    default: true
+  }
+}, {
+  timestamps: true
+});
+
+// Indexes for better query performance
+counselorSchema.index({ isActive: 1 });
+counselorSchema.index({ isVerified: 1 });
+counselorSchema.index({ verificationStatus: 1 });
+counselorSchema.index({ specialization: 1 });
+counselorSchema.index({ isAvailable: 1 });
+
+// Hash password before saving
+counselorSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+
+  try {
+    this.password = await argon2.hash(this.password);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Method to check password
+counselorSchema.methods.comparePassword = async function (candidatePassword) {
+  try {
+    return await argon2.verify(this.password, candidatePassword);
+  } catch {
+    throw new Error('Password comparison failed');
+  }
+};
+
+// Check if account is locked
+counselorSchema.methods.isLocked = function () {
+  return !!(this.lockUntil && this.lockUntil > Date.now());
+};
+
+// Method to get full name
+counselorSchema.methods.getFullName = function () {
+  return `${this.firstName} ${this.lastName}`;
+};
+
+// Method to check if counselor is available for sessions
+counselorSchema.methods.isAvailableForSession = function () {
+  return this.isActive && this.isVerified && this.isAvailable && !this.isLocked();
+};
+
+module.exports = mongoose.model('Counselor', counselorSchema);
