@@ -20,7 +20,7 @@ module.exports = [
     },
     files: ['src/**/*.js'],
     rules: {
-      'no-console': 'warn',
+      "no-console": "off",
       'no-unused-vars': 'error',
       'no-var': 'error',
       'prefer-const': 'error'
