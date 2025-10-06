@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Node js, express js, Javascript, and MongoDB",
   "main": "server.js",
-  
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
@@ -26,7 +25,6 @@
   "homepage": "https://github.com/Ialbertine/HerHaven_Backend_ALU#readme",
   "dependencies": {
     "argon2": "^0.44.0",
-    "axios": "^1.12.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
