@@ -26,13 +26,14 @@ connectDB();
 // Security middleware
 app.use(
   helmet({
-    crossOriginResourcePolicy: { policy: "same-site" },
+    crossOriginResourcePolicy: { policy: "cross-origin" },
   })
 );
 
 // CORS configuration
 const allowedOrigins = [
   "http://localhost:5173",
+  "http://localhost:3000",
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
@@ -44,10 +45,15 @@ app.use(
       if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
+        logger.warn(`CORS blocked origin: ${origin}`);
         callback(new Error("Not allowed by CORS"));
       }
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["Content-Range", "X-Content-Range"],
+    maxAge: 600,
   })
 );
 
