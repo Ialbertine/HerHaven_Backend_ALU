@@ -34,6 +34,7 @@ app.use(
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
+  "https://ialbertine-herhaven.netlify.app",
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
@@ -104,7 +105,6 @@ app.use((req, res) => {
   });
 });
 
-// Error handling middleware
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
