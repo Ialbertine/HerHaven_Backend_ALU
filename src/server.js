@@ -79,6 +79,23 @@ app.use(
 );
 
 // Routes
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "HerHaven API Server",
+    version: "1.0.0",
+    endpoints: {
+      health: "/api/health",
+      auth: "/api/auth",
+      safety: "/api/safety",
+      counselor: "/api/counselor",
+      admin: "/api/admin",
+      appointments: "/api/appointments",
+      notifications: "/api/notifications",
+    },
+  });
+});
+
 app.use("/api/auth", authRoutes);
 app.use("/api/safety", safetyRoutes);
 app.use("/api/counselor", counselorRoutes);
@@ -108,10 +125,11 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || "0.0.0.0";
 
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
   logger.info(
-    `HerHaven Server running in ${process.env.NODE_ENV} mode on port ${PORT}`
+    `HerHaven Server running in ${process.env.NODE_ENV} mode on ${HOST}:${PORT}`
   );
 });
 
