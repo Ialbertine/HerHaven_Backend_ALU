@@ -1,6 +1,6 @@
-require('dotenv').config();
-const nodemailer = require('nodemailer');
-const logger = require('../utils/logger');
+require("dotenv").config();
+const nodemailer = require("nodemailer");
+const logger = require("../utils/logger");
 
 class EmailService {
   constructor() {
@@ -11,35 +11,34 @@ class EmailService {
   initializeTransporter() {
     try {
       this.transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        host: process.env.SMTP_HOST || "smtp.gmail.com",
         port: process.env.SMTP_PORT || 587,
-        secure: process.env.SMTP_SECURE === 'true',
+        secure: process.env.SMTP_SECURE === "true",
         auth: {
           user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
+          pass: process.env.SMTP_PASS,
         },
         tls: {
-          rejectUnauthorized: false
-        }
+          rejectUnauthorized: false,
+        },
       });
 
       this.transporter.verify((error) => {
         if (error) {
-          logger.error('Email service initialization failed:', error);
+          logger.error("Email service initialization failed:", error);
         } else {
-          logger.info('Email service initialized successfully');
+          logger.info("Email service initialized successfully");
         }
       });
-
     } catch (error) {
-      logger.error('Failed to initialize email service:', error);
+      logger.error("Failed to initialize email service:", error);
     }
   }
 
   async sendEmail(to, subject, htmlContent, textContent = null) {
     try {
       if (!this.transporter) {
-        throw new Error('Email transporter not initialized');
+        throw new Error("Email transporter not initialized");
       }
 
       const mailOptions = {
@@ -47,7 +46,7 @@ class EmailService {
         to: to,
         subject: subject,
         html: htmlContent,
-        text: textContent || this.stripHtml(htmlContent)
+        text: textContent || this.stripHtml(htmlContent),
       };
 
       const result = await this.transporter.sendMail(mailOptions);
@@ -56,21 +55,104 @@ class EmailService {
       return {
         success: true,
         messageId: result.messageId,
-        message: 'Email sent successfully'
+        message: "Email sent successfully",
       };
-
     } catch (error) {
       logger.error(`Failed to send email to ${to}:`, error);
       return {
         success: false,
         error: error.message,
-        message: 'Failed to send email'
+        message: "Failed to send email",
       };
     }
   }
 
+  // send counselor invitation email
+
+  async sendCounselorInvitation(counselor, inviteToken) {
+    const registrationLink = `${
+      process.env.CLIENT_URL || "http://localhost:3000"
+    }/counselor/complete-registration/${inviteToken}`;
+    const subject = "🎉 You're Invited to Join HerHaven as a Counselor";
+
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Counselor Invitation</title>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 8px; }
+        .header { background: #844ae2ff; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: white; padding: 30px; border-radius: 0 0 8px 8px; }
+        .btn { display: inline-block; background: #844ae2ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 15px 0; }
+        .info-box { background: #f0e6ff; border-left: 4px solid #844ae2ff; padding: 15px; margin: 15px 0; }
+        .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Welcome to HerHaven!</h1>
+          <h2>Complete Your Counselor Registration</h2>
+        </div>
+        
+        <div class="content">
+          <p>Hello ${counselor.firstName} ${counselor.lastName},</p>
+          
+          <p>You've been invited to join the HerHaven platform as a counselor! We're excited to have you be part of our mission to support and empower women.</p>
+          
+          <div class="info-box">
+            <h4>What You'll Need to Complete Registration:</h4>
+            <ul>
+              <li>Create a username and password</li>
+              <li>Provide your phone number</li>
+              <li>Enter your professional license number</li>
+              <li>Select your specialization</li>
+              <li>Share your years of experience</li>
+              <li>Write a brief professional bio</li>
+            </ul>
+          </div>
+          
+          <p><strong>Next Steps:</strong></p>
+          <ol>
+            <li>Click the button below to access the registration form</li>
+            <li>Fill in your professional details</li>
+            <li>Create your login credentials</li>
+            <li>Start helping women in need</li>
+          </ol>
+          
+          <a href="${registrationLink}" class="btn">Complete Registration</a>
+          
+          <p><strong>Important:</strong> This invitation link will expire in 7 days.</p>
+          
+          <p>If you have any questions or didn't request this invitation, please contact our support team.</p>
+          
+          <p>Best regards,<br>
+          <strong>The HerHaven Team</strong></p>
+        </div>
+        
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} HerHaven. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+    return await this.sendEmail(
+      counselor.email,
+      subject,
+      htmlContent,
+      this.stripHtml(htmlContent)
+    );
+  }
+
+  // send counselor registration confirmation email
   async sendCounselorRegistrationConfirmation(counselor) {
-    const subject = 'HerHaven - Counselor Application Submitted Successfully';
+    const subject = "HerHaven - Counselor Application Submitted Successfully";
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -109,9 +191,15 @@ class EmailService {
               <ul>
                 <li><strong>Email:</strong> ${counselor.email}</li>
                 <li><strong>Username:</strong> ${counselor.username}</li>
-                <li><strong>Specialization:</strong> ${counselor.specialization}</li>
-                <li><strong>Experience:</strong> ${counselor.experience} years</li>
-                <li><strong>License Number:</strong> ${counselor.licenseNumber}</li>
+                <li><strong>Specialization:</strong> ${
+                  counselor.specialization
+                }</li>
+                <li><strong>Experience:</strong> ${
+                  counselor.experience
+                } years</li>
+                <li><strong>License Number:</strong> ${
+                  counselor.licenseNumber
+                }</li>
                 <li><strong>Application ID:</strong> ${counselor._id}</li>
               </ul>
             </div>
@@ -128,7 +216,7 @@ class EmailService {
           
           <div class="footer">
             <p>This is an automated message. Please do not reply to this email.</p>
-            <p>© 2025 HerHaven Platform. All rights reserved.</p>
+            <p>&copy; ${new Date().getFullYear()} HerHaven Platform. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -139,7 +227,7 @@ class EmailService {
   }
 
   async sendAdminNewApplicationAlert(counselor, adminEmail) {
-    const subject = 'New Counselor Application - HerHaven Platform';
+    const subject = "New Counselor Application - HerHaven Platform";
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -181,14 +269,26 @@ class EmailService {
                 <li><strong>Email:</strong> ${counselor.email}</li>
                 <li><strong>Username:</strong> ${counselor.username}</li>
                 <li><strong>Phone:</strong> ${counselor.phoneNumber}</li>
-                <li><strong>Specialization:</strong> ${counselor.specialization}</li>
-                <li><strong>Experience:</strong> ${counselor.experience} years</li>
-                <li><strong>License Number:</strong> ${counselor.licenseNumber}</li>
+                <li><strong>Specialization:</strong> ${
+                  counselor.specialization
+                }</li>
+                <li><strong>Experience:</strong> ${
+                  counselor.experience
+                } years</li>
+                <li><strong>License Number:</strong> ${
+                  counselor.licenseNumber
+                }</li>
                 <li><strong>Application ID:</strong> ${counselor._id}</li>
-                <li><strong>Applied:</strong> ${new Date(counselor.createdAt).toLocaleString()}</li>
+                <li><strong>Applied:</strong> ${new Date(
+                  counselor.createdAt
+                ).toLocaleString()}</li>
               </ul>
               
-              ${counselor.bio ? `<p><strong>Bio:</strong><br>${counselor.bio}</p>` : ''}
+              ${
+                counselor.bio
+                  ? `<p><strong>Bio:</strong><br>${counselor.bio}</p>`
+                  : ""
+              }
             </div>
             
             <div class="info-box">
@@ -197,7 +297,9 @@ class EmailService {
             </div>
             
             <p><strong>Quick Access:</strong></p>
-            <a href="${process.env.CLIENT_URL || 'http://localhost:5000'}/api/auth/login" class="btn">
+            <a href="${
+              process.env.CLIENT_URL || "http://localhost:5000"
+            }/api/auth/login" class="btn">
               Login to Admin Dashboard
             </a>
             
@@ -216,7 +318,7 @@ class EmailService {
           
           <div class="footer">
             <p>This is an automated admin notification.</p>
-            <p>© 2025 HerHaven Platform. All rights reserved.</p>
+            <p>&copy; ${new Date().getFullYear()} HerHaven Platform. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -227,7 +329,8 @@ class EmailService {
   }
 
   async sendCounselorApprovalNotification(counselor) {
-    const subject = '🎉 Congratulations! Your HerHaven Application Has Been Approved';
+    const subject =
+      "🎉 Congratulations! Your HerHaven Application Has Been Approved";
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -272,7 +375,9 @@ class EmailService {
             
             <p><strong>Access Your Dashboard:</strong></p>
 
-            <a href="${process.env.CLIENT_URL || 'http://localhost:5000'}/api/auth/login" class="btn">
+            <a href="${
+              process.env.CLIENT_URL || "http://localhost:5000"
+            }/api/auth/login" class="btn">
               Login to access your dashboard
             </a>
             
@@ -289,7 +394,7 @@ class EmailService {
           
           <div class="footer">
             <p>This is an automated message. Please do not reply to this email.</p>
-            <p>© 2025 HerHaven Platform. All rights reserved.</p>
+            <p>&copy; ${new Date().getFullYear()} HerHaven Platform. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -299,8 +404,12 @@ class EmailService {
     return await this.sendEmail(counselor.email, subject, htmlContent);
   }
 
-  async sendCounselorRejectionNotification(counselor, rejectionReason, rejectedByAdmin) {
-    const subject = 'HerHaven - Application Status Update';
+  async sendCounselorRejectionNotification(
+    counselor,
+    rejectionReason,
+    rejectedByAdmin
+  ) {
+    const subject = "HerHaven - Application Status Update";
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -332,8 +441,13 @@ class EmailService {
             
             <div class="info-box">
               <h4>Feedback:</h4>
-              <p><strong>Reason:</strong> ${rejectionReason || 'Application does not meet current platform requirements.'}</p>
-              <p><strong>Reviewed by:</strong> ${rejectedByAdmin?.firstName || 'Admin'} ${rejectedByAdmin?.lastName || ''}</p>
+              <p><strong>Reason:</strong> ${
+                rejectionReason ||
+                "Application does not meet current platform requirements."
+              }</p>
+              <p><strong>Reviewed by:</strong> ${
+                rejectedByAdmin?.firstName || "Admin"
+              } ${rejectedByAdmin?.lastName || ""}</p>
               <p><strong>Review Date:</strong> ${new Date().toLocaleDateString()}</p>
             </div>
             
@@ -345,7 +459,7 @@ class EmailService {
           
           <div class="footer">
             <p>This is an automated message. Please do not reply to this email.</p>
-            <p>© 2025 HerHaven Platform. All rights reserved.</p>
+            <p>&copy; ${new Date().getFullYear()} HerHaven Platform. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -356,7 +470,10 @@ class EmailService {
   }
 
   stripHtml(html) {
-    return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    return html
+      .replace(/<[^>]*>/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   async sendBulkEmailToAdmins(adminEmails, subject, htmlContent) {
@@ -367,7 +484,10 @@ class EmailService {
         const result = await this.sendEmail(email, subject, htmlContent);
         results.push({ email, result });
       } catch (error) {
-        results.push({ email, result: { success: false, error: error.message } });
+        results.push({
+          email,
+          result: { success: false, error: error.message },
+        });
       }
     }
 

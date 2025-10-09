@@ -58,18 +58,21 @@ const adminRegisterValidation = Joi.object({
   )).optional()
 });
 
-// Admin onboarding validation (same as counselor registration but for admin use)
-const adminOnboardValidation = Joi.object({
+
+// Admin onboarding validation 
+const adminInviteValidation = Joi.object({
   email: Joi.string().email().required().normalize(),
-  password: Joi.string().min(6).required(),
-  username: Joi.string().min(3).max(30).pattern(/^[a-zA-Z0-9_]+$/).required().trim(),
   firstName: Joi.string().min(1).max(50).required().trim(),
-  lastName: Joi.string().min(1).max(50).required().trim(),
+  lastName: Joi.string().min(1).max(50).required().trim()
+});
+
+const completeCounselorRegistrationValidation = Joi.object({
+  username: Joi.string().min(3).max(30).pattern(/^[a-zA-Z0-9_]+$/).required().trim(),
+  password: Joi.string().min(6).required(),
   phoneNumber: Joi.string().required().trim(),
   licenseNumber: Joi.string().required().trim(),
   specialization: Joi.string().valid(
     'Trauma Counseling',
-    'Crisis Intervention',
     'Domestic Violence',
     'Sexual Assault',
     'Mental Health',
@@ -79,7 +82,7 @@ const adminOnboardValidation = Joi.object({
     'General Counseling'
   ).required(),
   experience: Joi.number().min(0).required(),
-  bio: Joi.string().max(500).optional().allow('')
+  bio: Joi.string().max(500).optional().trim()
 });
 
 module.exports = {
@@ -88,5 +91,6 @@ module.exports = {
   guestAccessValidation,
   counselorRegisterValidation,
   adminRegisterValidation,
-  adminOnboardValidation
+  adminInviteValidation,
+  completeCounselorRegistrationValidation,
 };

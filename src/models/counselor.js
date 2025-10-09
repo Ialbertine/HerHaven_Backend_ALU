@@ -11,13 +11,12 @@ const counselorSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
     minlength: 6
   },
   username: {
     type: String,
-    required: true,
     unique: true,
+    sparse: true,
     trim: true,
     minlength: 3,
     maxlength: 30,
@@ -27,17 +26,14 @@ const counselorSchema = new mongoose.Schema({
   // Professional information
   firstName: {
     type: String,
-    required: true,
     trim: true
   },
   lastName: {
     type: String,
-    required: true,
     trim: true
   },
   phoneNumber: {
     type: String,
-    required: true,
     trim: true
   },
   role: {
@@ -47,13 +43,12 @@ const counselorSchema = new mongoose.Schema({
   },
   licenseNumber: {
     type: String,
-    required: true,
     unique: true,
+    sparse: true,
     trim: true
   },
   specialization: {
     type: String,
-    required: true,
     enum: [
       'Trauma Counseling',
       'Domestic Violence',
@@ -67,7 +62,6 @@ const counselorSchema = new mongoose.Schema({
   },
   experience: {
     type: Number,
-    required: true,
     min: 0
   },
   bio: {
@@ -87,8 +81,24 @@ const counselorSchema = new mongoose.Schema({
   },
   verificationStatus: {
     type: String,
-    enum: ['pending', 'approved', 'rejected'],
+    enum: ['invited', 'pending', 'approved', 'rejected'], 
     default: 'pending'
+  },
+
+  // Invitation fields
+  inviteToken: {
+    type: String,
+    sparse: true
+  },
+  inviteTokenExpiry: {
+    type: Date
+  },
+  invitedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin'
+  },
+  invitedAt: {
+    type: Date
   },
 
   // Admin approval tracking
@@ -173,7 +183,7 @@ counselorSchema.index({ isAvailable: 1 });
 
 // Hash password before saving
 counselorSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+  if (!this.password || !this.isModified('password')) return next();
 
   try {
     this.password = await argon2.hash(this.password);

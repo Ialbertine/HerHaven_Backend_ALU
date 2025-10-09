@@ -6,6 +6,18 @@ class NotificationService {
     logger.info('Notification service initialized - email notifications enabled');
   }
 
+  // send counselor invitation email
+  async sendCounselorInvitation(counselor, inviteToken) {
+    try {
+      const result = await emailService.sendCounselorInvitation(counselor, inviteToken);
+      logger.info(`Counselor invitation sent to ${counselor.email}: ${result.success}`);
+      return result;
+    } catch (error) {
+      logger.error(`Failed to send counselor invitation:`, error);
+      return { success: false, message: 'Failed to send invitation', error: error.message };
+    }
+  }
+
   // Tells user their appointment was booked
   async notifyAppointmentBooked(appointment, user, counselor) {
     logger.info(`Appointment booked notification: User ${user.username} booked with counselor ${counselor.firstName} ${counselor.lastName}`);

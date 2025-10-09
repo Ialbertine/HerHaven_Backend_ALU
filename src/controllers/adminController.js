@@ -3,15 +3,14 @@ const User = require('../models/user');
 const SecurityUtils = require('../utils/security');
 const notificationService = require('../services/notificationService');
 const logger = require('../utils/logger');
+const crypto = require('crypto');
+
 
 const adminController = {
-  // Admin onboarding counselors directly
-  onboardCounselor: async (req, res) => {
+  // Invites counselor via email
+  inviteCounselor: async (req, res) => {
     try {
-      const {
-        email, password, username, firstName, lastName, phoneNumber,
-        licenseNumber, specialization, experience, bio
-      } = req.body;
+      const { email, firstName, lastName } = req.body;
       const admin = req.admin;
 
       // Check if counselor already exists by email
@@ -23,16 +22,105 @@ const adminController = {
         });
       }
 
-      // Check if username already exists
-      const existingCounselorByUsername = await Counselor.findOne({ username });
-      if (existingCounselorByUsername) {
+      // Generate secure invitation token
+      const inviteToken = crypto.randomBytes(32).toString('hex');
+      const tokenExpiry = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
+
+      // Create counselor with pending status and invitation token
+      const counselor = new Counselor({
+        email: SecurityUtils.sanitizeUserInput(email),
+        firstName: SecurityUtils.sanitizeUserInput(firstName),
+        lastName: SecurityUtils.sanitizeUserInput(lastName),
+        role: 'counselor',
+        verificationStatus: 'invited',
+        isVerified: false,
+        inviteToken,
+        inviteTokenExpiry: tokenExpiry,
+        invitedBy: admin._id,
+        invitedAt: new Date()
+      });
+
+      await counselor.save();
+
+       // Send invitation email to counselor
+      try {
+        await notificationService.sendCounselorInvitation(counselor, inviteToken);
+        logger.info(`Invitation email sent to counselor: ${counselor.email}`);
+      } catch (emailError) {
+        logger.error(`Failed to send invitation email to ${counselor.email}:`, emailError);
+        // this will remove the counselor record if email fails
+        await Counselor.deleteOne({ _id: counselor._id });
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to send invitation email. Please try again.'
+        });
+      }
+
+       logger.info(`Counselor ${counselor.email} invited by admin ${admin.email}`);
+
+      res.status(201).json({
+        success: true,
+        message: 'Invitation sent successfully. Counselor will receive an email to complete registration.',
+        data: {
+          counselor: {
+            id: counselor._id,
+            email: counselor.email,
+            firstName: counselor.firstName,
+            lastName: counselor.lastName,
+            specialization: counselor.specialization,
+            experience: counselor.experience,
+            verificationStatus: counselor.verificationStatus,
+            invitedAt: counselor.invitedAt
+          }
+        }
+      });
+
+    } catch (error) {
+      logger.error('Invite counselor error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to invite counselor. Please try again.',
+        error: error.message
+      });
+    }
+  },
+
+  // counselor completes registration using invitation token
+  completeCounselorRegistration: async (req, res) => {
+    try {
+      const { token } = req.params;
+      const {
+        username,
+        password,
+        phoneNumber,
+        licenseNumber,
+        specialization,
+        experience,
+        bio
+      } = req.body;
+
+      // Find counselor by invite token
+      const counselor = await Counselor.findOne({
+        inviteToken: token,
+        inviteTokenExpiry: { $gt: Date.now() },
+        verificationStatus: 'invited'
+      });
+
+      if (!counselor) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid or expired invitation link'
+        });
+      }
+
+      const existingUsername = await Counselor.findOne({ username });
+      if (existingUsername) {
         return res.status(400).json({
           success: false,
           message: 'Username already taken'
         });
       }
 
-      // Check if license number already exists
       const existingLicense = await Counselor.findOne({ licenseNumber });
       if (existingLicense) {
         return res.status(400).json({
@@ -41,7 +129,6 @@ const adminController = {
         });
       }
 
-      // Validate password strength
       if (!SecurityUtils.isStrongPassword(password)) {
         return res.status(400).json({
           success: false,
@@ -49,43 +136,44 @@ const adminController = {
         });
       }
 
-      const counselor = new Counselor({
-        email: SecurityUtils.sanitizeUserInput(email),
-        password,
-        username: SecurityUtils.sanitizeUserInput(username),
-        firstName: SecurityUtils.sanitizeUserInput(firstName),
-        lastName: SecurityUtils.sanitizeUserInput(lastName),
-        phoneNumber: SecurityUtils.sanitizeUserInput(phoneNumber),
-        role: 'counselor',
-        licenseNumber: SecurityUtils.sanitizeUserInput(licenseNumber),
-        specialization,
-        experience,
-        bio: SecurityUtils.sanitizeUserInput(bio || ''),
-        verificationStatus: 'approved',
-        isVerified: true,
-        adminApprovedBy: admin._id,
-        adminApprovedAt: new Date()
-      });
+      // Update counselor with all details
+      counselor.username = SecurityUtils.sanitizeUserInput(username);
+      counselor.password = password; 
+      counselor.phoneNumber = SecurityUtils.sanitizeUserInput(phoneNumber);
+      counselor.licenseNumber = SecurityUtils.sanitizeUserInput(licenseNumber);
+      counselor.specialization = specialization;
+      counselor.experience = experience;
+      counselor.bio = SecurityUtils.sanitizeUserInput(bio || '');
+      counselor.verificationStatus = 'approved';
+      counselor.isVerified = true;
+      counselor.isActive = true;
+      counselor.adminApprovedBy = counselor.invitedBy;
+      counselor.adminApprovedAt = new Date();
+      counselor.inviteToken = undefined;
+      counselor.inviteTokenExpiry = undefined;
 
       await counselor.save();
 
       // Update admin metrics
-      admin.counselorsApproved += 1;
-      await admin.save();
+      const admin = await require('../models/admin').findById(counselor.invitedBy);
+      if (admin) {
+        admin.counselorsApproved += 1;
+        await admin.save();
+      }
 
-      // Send welcome email to counselor
+      // Send welcome email
       try {
         await notificationService.sendCounselorApprovalNotification(counselor, admin);
-        logger.info(`Welcome email sent to directly onboarded counselor: ${counselor.email}`);
+        logger.info(`Welcome email sent to counselor: ${counselor.email}`);
       } catch (emailError) {
         logger.error(`Failed to send welcome email to ${counselor.email}:`, emailError);
       }
 
-      logger.info(`Counselor ${counselor.email} onboarded directly by admin ${admin.email}`);
+      logger.info(`Counselor ${counselor.email} approved by admin ${admin.email}`);
 
-      res.status(201).json({
+      res.json({
         success: true,
-        message: 'Counselor onboarded successfully and is now available for appointments. Welcome email sent to counselor.',
+        message: 'Registration completed successfully. You can now log in with your credentials.',
         data: {
           counselor: {
             id: counselor._id,
@@ -93,20 +181,20 @@ const adminController = {
             username: counselor.username,
             firstName: counselor.firstName,
             lastName: counselor.lastName,
+            phoneNumber: counselor.phoneNumber,
+            licenseNumber: counselor.licenseNumber,
             specialization: counselor.specialization,
             experience: counselor.experience,
-            isVerified: counselor.isVerified,
-            verificationStatus: counselor.verificationStatus,
-            onboardedAt: counselor.adminApprovedAt
+            verificationStatus: counselor.verificationStatus
           }
         }
       });
-
     } catch (error) {
-      logger.error('Admin counselor onboarding error:', error);
+      logger.error('Complete counselor registration error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to onboard counselor'
+        message: 'Failed to complete registration',
+        error: error.message
       });
     }
   },
@@ -120,7 +208,7 @@ const adminController = {
 
       res.json({
         success: true,
-        message: 'Pending counselors retrieved',
+        message: 'Pending counselors retrieved successfully',
         data: {
           counselors: pendingCounselors,
           count: pendingCounselors.length
@@ -197,7 +285,8 @@ const adminController = {
       logger.error('Approve counselor error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to approve counselor'
+        message: 'Failed to approve counselor',
+        error: error.message
       });
     }
   },
