@@ -1,10 +1,11 @@
 const Counselor = require('../models/counselor');
 const User = require('../models/user');
 const SecurityUtils = require('../utils/security');
+const notificationService = require('../services/notificationService');
 const logger = require('../utils/logger');
 
 const adminController = {
-  // Admin onboarding - Create counselor directly (bypasses self-registration)
+  // Admin onboarding counselors directly
   onboardCounselor: async (req, res) => {
     try {
       const {
@@ -48,7 +49,6 @@ const adminController = {
         });
       }
 
-      // Create counselor directly with admin approval
       const counselor = new Counselor({
         email: SecurityUtils.sanitizeUserInput(email),
         password,
@@ -56,11 +56,12 @@ const adminController = {
         firstName: SecurityUtils.sanitizeUserInput(firstName),
         lastName: SecurityUtils.sanitizeUserInput(lastName),
         phoneNumber: SecurityUtils.sanitizeUserInput(phoneNumber),
+        role: 'counselor',
         licenseNumber: SecurityUtils.sanitizeUserInput(licenseNumber),
         specialization,
         experience,
         bio: SecurityUtils.sanitizeUserInput(bio || ''),
-        verificationStatus: 'approved', // Directly approved by admin
+        verificationStatus: 'approved',
         isVerified: true,
         adminApprovedBy: admin._id,
         adminApprovedAt: new Date()
@@ -72,11 +73,19 @@ const adminController = {
       admin.counselorsApproved += 1;
       await admin.save();
 
+      // Send welcome email to counselor
+      try {
+        await notificationService.sendCounselorApprovalNotification(counselor, admin);
+        logger.info(`Welcome email sent to directly onboarded counselor: ${counselor.email}`);
+      } catch (emailError) {
+        logger.error(`Failed to send welcome email to ${counselor.email}:`, emailError);
+      }
+
       logger.info(`Counselor ${counselor.email} onboarded directly by admin ${admin.email}`);
 
       res.status(201).json({
         success: true,
-        message: 'Counselor onboarded successfully and is now available for appointments',
+        message: 'Counselor onboarded successfully and is now available for appointments. Welcome email sent to counselor.',
         data: {
           counselor: {
             id: counselor._id,
@@ -160,11 +169,19 @@ const adminController = {
       admin.counselorsApproved += 1;
       await admin.save();
 
+      // Send approval email to counselor
+      try {
+        await notificationService.sendCounselorApprovalNotification(counselor, admin);
+        logger.info(`Approval email sent to counselor: ${counselor.email}`);
+      } catch (emailError) {
+        logger.error(`Failed to send approval email to ${counselor.email}:`, emailError);
+      }
+
       logger.info(`Counselor ${counselor.email} approved by admin ${admin.email}`);
 
       res.json({
         success: true,
-        message: 'Counselor approved successfully',
+        message: 'Counselor approved successfully. Notification email sent to counselor.',
         data: {
           counselor: {
             id: counselor._id,
@@ -219,11 +236,19 @@ const adminController = {
       admin.counselorsRejected += 1;
       await admin.save();
 
+      // Send rejection email to counselor
+      try {
+        await notificationService.sendCounselorRejectionNotification(counselor, rejectionReason, admin);
+        logger.info(`Rejection email sent to counselor: ${counselor.email}`);
+      } catch (emailError) {
+        logger.error(`Failed to send rejection email to ${counselor.email}:`, emailError);
+      }
+
       logger.info(`Counselor ${counselor.email} rejected by admin ${admin.email}. Reason: ${rejectionReason}`);
 
       res.json({
         success: true,
-        message: 'Counselor application rejected',
+        message: 'Counselor application rejected. Notification email sent to counselor.',
         data: {
           counselor: {
             id: counselor._id,
@@ -243,7 +268,7 @@ const adminController = {
     }
   },
 
-  // Get all counselors (for admin management)
+  // Get all counselors for admin management
   getAllCounselors: async (req, res) => {
     try {
       const { verificationStatus, specialization } = req.query;
@@ -302,7 +327,7 @@ const adminController = {
         { $sort: { count: -1 } }
       ]);
 
-      // Get recent activity (last 30 days)
+      // Get recent activity the last 30 days
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -427,6 +452,45 @@ const adminController = {
       res.status(500).json({
         success: false,
         message: 'Failed to deactivate counselor'
+      });
+    }
+  },
+
+  // Delete counselor
+  deleteCounselor: async (req, res) => {
+    try {
+      const { counselorId } = req.params;
+      const admin = req.admin;
+
+      if (!admin.hasPermission('delete')) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have permission to delete counselors'
+        });
+      }
+
+      const counselor = await Counselor.findById(counselorId);
+      if (!counselor) {
+        return res.status(404).json({
+          success: false,
+          message: 'Counselor not found'
+        });
+      }
+
+      await Counselor.deleteOne({ _id: counselorId });
+
+      logger.info(`Counselor ${counselor.email} deleted by admin ${admin.email}`);
+
+      res.json({
+        success: true,
+        message: 'Counselor deleted successfully'
+      });
+
+    } catch (error) {
+      logger.error('Delete counselor error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to delete counselor'
       });
     }
   }

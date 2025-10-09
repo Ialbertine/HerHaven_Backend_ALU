@@ -44,7 +44,7 @@ const adminSchema = new mongoose.Schema({
   // Admin role and permissions
   role: {
     type: String,
-    enum: ['super_admin', 'admin', 'moderator'],
+    enum: ['super_admin', 'admin'],
     default: 'admin'
   },
   permissions: [{
@@ -54,7 +54,9 @@ const adminSchema = new mongoose.Schema({
       'manage_users',
       'view_analytics',
       'manage_content',
-      'system_settings'
+      'system_settings',
+      'manage_appointments',
+      'read', 'write', 'delete', 'create', 'update'
     ]
   }],
 

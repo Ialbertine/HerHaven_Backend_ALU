@@ -142,4 +142,7 @@ vite.config.ts.timestamp-*
 .env
 .env.*
 
+# for creating admin manual credentials
+scripts/
+createAdmin.js
 

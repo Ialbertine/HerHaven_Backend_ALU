@@ -4,6 +4,7 @@ const Admin = require('../models/admin');
 const GuestSession = require('../models/guestSession');
 const SecurityUtils = require('../utils/security.js');
 const logger = require('../utils/logger');
+const Counselor = require('../models/counselor');
 
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, {
@@ -85,75 +86,177 @@ const authController = {
     }
   },
 
-  // Login user
+  // Login user and admin
   login: async (req, res) => {
     try {
       const { email, password } = req.body;
+      const sanitizedEmail = SecurityUtils.sanitizeUserInput(email);
 
-      // Find user
+      // 1. Try to find an active user
       const user = await User.findOne({
-        email: SecurityUtils.sanitizeUserInput(email),
+        email: sanitizedEmail,
         isActive: true
       });
 
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid email or password'
-        });
-      }
-
-      // Check if account is locked
-      if (user.isLocked()) {
-        return res.status(423).json({
-          success: false,
-          message: 'Account temporarily locked due to too many failed attempts'
-        });
-      }
-
-      // Verify password
-      const isPasswordValid = await user.comparePassword(password);
-
-      if (!isPasswordValid) {
-        // Increment login attempts
-        user.loginAttempts += 1;
-
-        // Lock account after 5 failed attempts for 30 minutes
-        if (user.loginAttempts >= 5) {
-          user.lockUntil = Date.now() + 30 * 60 * 1000; // 30 minutes
+      if (user) {
+        if (user.isLocked()) {
+          return res.status(423).json({
+            success: false,
+            message: 'Account temporarily locked due to too many failed attempts'
+          });
         }
 
+        const isPasswordValid = await user.comparePassword(password);
+
+        if (!isPasswordValid) {
+          user.loginAttempts += 1;
+          if (user.loginAttempts >= 5) {
+            user.lockUntil = Date.now() + 30 * 60 * 1000; 
+          }
+          await user.save();
+          return res.status(401).json({
+            success: false,
+            message: 'Invalid email or password'
+          });
+        }
+
+        user.loginAttempts = 0;
+        user.lockUntil = undefined;
+        user.lastLogin = new Date();
         await user.save();
 
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid email or password'
+        const token = generateToken(user._id);
+        logger.info(`User logged in: ${user.email}`);
+
+        return res.json({
+          success: true,
+          message: 'Login successful',
+          data: {
+            token,
+            user: {
+              id: user._id,
+              email: user.email,
+              username: user.username,
+              role: user.role
+            }
+          }
         });
       }
 
-      // Reset login attempts on successful login
-      user.loginAttempts = 0;
-      user.lockUntil = undefined;
-      user.lastLogin = new Date();
-      await user.save();
+      // for admin login
+      const admin = await Admin.findOne({
+        email: sanitizedEmail,
+        isActive: true
+      });
 
-      // Generate token
-      const token = generateToken(user._id);
-
-      logger.info(`User logged in: ${user.email}`);
-
-      res.json({
-        success: true,
-        message: 'Login successful',
-        data: {
-          token,
-          user: {
-            id: user._id,
-            email: user.email,
-            username: user.username,
-            role: user.role
-          }
+      if (admin) {
+        if (admin.isLocked()) {
+          return res.status(423).json({
+            success: false,
+            message: 'Account temporarily locked due to too many failed attempts'
+          });
         }
+
+        const isPasswordValid = await admin.comparePassword(password);
+
+        if (!isPasswordValid) {
+          admin.loginAttempts += 1;
+          if (admin.loginAttempts >= 5) {
+            admin.lockUntil = Date.now() + 30 * 60 * 1000;
+          }
+          await admin.save();
+          return res.status(401).json({
+            success: false,
+            message: 'Invalid email or password'
+          });
+        }
+
+        admin.loginAttempts = 0;
+        admin.lockUntil = undefined;
+        admin.lastLogin = new Date();
+        admin.lastActivity = new Date();
+        await admin.save();
+
+        const token = generateToken(admin._id);
+        logger.info(`Admin logged in: ${admin.email}`);
+
+        return res.json({
+          success: true,
+          message: 'Admin login successful',
+          data: {
+            token,
+            user: { 
+              id: admin._id,
+              email: admin.email,
+              username: admin.username,
+              firstName: admin.firstName,
+              lastName: admin.lastName,
+              role: admin.role,
+              isSuperAdmin: admin.isSuperAdmin
+            }
+          }
+        });
+      }
+
+      // counselor login who have been approved
+      const counselor = await Counselor.findOne({
+        email: sanitizedEmail,
+        isActive: true,
+        isVerified: true
+      });
+
+      if (counselor) {
+        if (counselor.isLocked()) {
+          return res.status(423).json({
+            success: false,
+            message: 'Account temporarily locked due to too many failed attempts'
+          });
+        }
+
+        const isPasswordValid = await counselor.comparePassword(password);
+
+        if (!isPasswordValid) {
+          counselor.loginAttempts += 1;
+          if (counselor.loginAttempts >= 5) {
+            counselor.lockUntil = Date.now() + 30 * 60 * 1000;
+          }
+          await counselor.save();
+          return res.status(401).json({
+            success: false,
+            message: 'Invalid email or password'
+          });
+        }
+
+        counselor.loginAttempts = 0;
+        counselor.lockUntil = undefined;
+        counselor.lastLogin = new Date();
+        await counselor.save();
+
+        const token = generateToken(counselor._id);
+        logger.info(`Counselor logged in: ${counselor.email}`);
+
+        return res.json({
+          success: true,
+          message: 'Counselor login successful',
+          data: {
+            token,
+            user: {
+              id: counselor._id,
+              email: counselor.email,
+              username: counselor.username,
+              firstName: counselor.firstName,
+              lastName: counselor.lastName,
+              role: counselor.role,
+              specialization: counselor.specialization
+            }
+          }
+        });
+      }
+
+      // No user or admin found with that email
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
       });
 
     } catch (error) {
@@ -237,91 +340,6 @@ const authController = {
       });
     }
   },
-
-  // Admin login
-  adminLogin: async (req, res) => {
-    try {
-      const { email, password } = req.body;
-
-      // Find admin
-      const admin = await Admin.findOne({
-        email: SecurityUtils.sanitizeUserInput(email),
-        isActive: true
-      });
-
-      if (!admin) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid email or password'
-        });
-      }
-
-      // Check if account is locked
-      if (admin.isLocked()) {
-        return res.status(423).json({
-          success: false,
-          message: 'Account temporarily locked due to too many failed attempts'
-        });
-      }
-
-      // Verify password
-      const isPasswordValid = await admin.comparePassword(password);
-
-      if (!isPasswordValid) {
-        // Increment login attempts
-        admin.loginAttempts += 1;
-
-        // Lock account after 5 failed attempts for 30 minutes
-        if (admin.loginAttempts >= 5) {
-          admin.lockUntil = Date.now() + 30 * 60 * 1000; // 30 minutes
-        }
-
-        await admin.save();
-
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid email or password'
-        });
-      }
-
-      // Reset login attempts on successful login
-      admin.loginAttempts = 0;
-      admin.lockUntil = undefined;
-      admin.lastLogin = new Date();
-      admin.lastActivity = new Date();
-      await admin.save();
-
-      // Generate token
-      const token = generateToken(admin._id);
-
-      logger.info(`Admin logged in: ${admin.email}`);
-
-      res.json({
-        success: true,
-        message: 'Admin login successful',
-        data: {
-          token,
-          admin: {
-            id: admin._id,
-            email: admin.email,
-            username: admin.username,
-            firstName: admin.firstName,
-            lastName: admin.lastName,
-            role: admin.role,
-            permissions: admin.permissions,
-            isSuperAdmin: admin.isSuperAdmin
-          }
-        }
-      });
-
-    } catch (error) {
-      logger.error('Admin login error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Admin login failed'
-      });
-    }
-  }
 };
 
 module.exports = authController;

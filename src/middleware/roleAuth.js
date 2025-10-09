@@ -1,11 +1,11 @@
 const Counselor = require('../models/counselor');
-const Admin = require('../models/admin');
 const logger = require('../utils/logger');
 
 // Role-based access control middleware
 const requireRole = (roles) => {
   return async (req, res, next) => {
     try {
+      
       if (!req.user) {
         return res.status(401).json({
           success: false,
@@ -13,13 +13,21 @@ const requireRole = (roles) => {
         });
       }
 
+      // Determine user role and check if it's from Admin collection
       const userRole = req.user.role;
+      // If role is 'admin' or 'super_admin', this is from Admin collection
+      if (userRole === 'admin' || userRole === 'super_admin' || req.user.isSuperAdmin) {
+        if (!req.admin) {
+          req.admin = req.user;
+        }
+      }
 
       // Check if user role is in allowed roles
       if (!roles.includes(userRole)) {
         return res.status(403).json({
           success: false,
-          message: 'Insufficient permissions'
+          message: 'Insufficient permissions',
+          error: { userRole, requiredRoles: roles }
         });
       }
 
@@ -41,23 +49,6 @@ const requireRole = (roles) => {
         req.counselor = counselor;
       }
 
-      // For admin role, check if admin is active
-      if (userRole === 'admin') {
-        const admin = await Admin.findOne({
-          email: req.user.email,
-          isActive: true
-        });
-
-        if (!admin) {
-          return res.status(403).json({
-            success: false,
-            message: 'Admin account not found or inactive'
-          });
-        }
-
-        req.admin = admin;
-      }
-
       next();
     } catch (error) {
       logger.error('Role authorization error:', error);
@@ -72,22 +63,34 @@ const requireRole = (roles) => {
 // Specific role middlewares
 const requireUser = requireRole(['user']);
 const requireCounselor = requireRole(['counselor']);
-const requireAdmin = requireRole(['admin']);
-const requireCounselorOrAdmin = requireRole(['counselor', 'admin']);
-const requireAnyRole = requireRole(['user', 'counselor', 'admin']);
+const requireAdmin = requireRole(['admin', 'super_admin']);
+const requireCounselorOrAdmin = requireRole(['counselor', 'admin', 'super_admin']);
+const requireAnyRole = requireRole(['user', 'counselor', 'admin', 'super_admin']);
 
 // Permission-based middleware for admins
 const requirePermission = (permission) => {
   return async (req, res, next) => {
     try {
-      if (!req.admin) {
+      // Check if req.admin exists, if not, check if req.user is an Admin
+      let admin = req.admin;
+      
+      if (!admin && req.user) {
+        // Check if req.user is actually an Admin
+        const userRole = req.user.role;
+        if (userRole === 'admin' || userRole === 'super_admin' || req.user.isSuperAdmin) {
+          admin = req.user;
+          req.admin = admin; 
+        }
+      }
+
+      if (!admin) {
         return res.status(401).json({
           success: false,
           message: 'Admin authentication required'
         });
       }
 
-      if (!req.admin.hasPermission(permission)) {
+      if (!admin.hasPermission(permission)) {
         return res.status(403).json({
           success: false,
           message: `Permission '${permission}' required`

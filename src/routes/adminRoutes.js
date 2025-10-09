@@ -7,28 +7,21 @@ const { adminOnboardValidation } = require('../validations/authValidation');
 
 const router = express.Router();
 
-// POST /api/admin/counselors/onboard
-router.post('/counselors/onboard', adminAuth, requireCounselorApproval, validate(adminOnboardValidation), adminController.onboardCounselor);
+router.use(adminAuth);
 
-// GET /api/admin/counselors/pending
-router.get('/counselors/pending', adminAuth, requireCounselorApproval, adminController.getPendingCounselors);
+// will onboard counselor
+router.post('/counselors/onboard', requireCounselorApproval, validate(adminOnboardValidation), adminController.onboardCounselor);
 
-// PUT /api/admin/counselors/:counselorId/approve
-router.put('/counselors/:counselorId/approve', adminAuth, requireCounselorApproval, adminController.approveCounselor);
+// will get pending counselors
+router.get('/counselors', adminController.getAllCounselors);
+router.get('/counselors/pending', requireCounselorApproval, adminController.getPendingCounselors);
+router.put('/counselors/:counselorId/approve', requireCounselorApproval, adminController.approveCounselor);
+router.put('/counselors/:counselorId/reject', requireCounselorApproval, adminController.rejectCounselor);
+router.put('/counselors/:counselorId/deactivate', adminController.deactivateCounselor);
+router.delete('/counselors/:counselorId', requireCounselorApproval, adminController.deleteCounselor);
 
-// PUT /api/admin/counselors/:counselorId/reject
-router.put('/counselors/:counselorId/reject', adminAuth, requireCounselorApproval, adminController.rejectCounselor);
-
-// GET /api/admin/counselors
-router.get('/counselors', adminAuth, adminController.getAllCounselors);
-
-// PUT /api/admin/counselors/:counselorId/deactivate
-router.put('/counselors/:counselorId/deactivate', adminAuth, adminController.deactivateCounselor);
-
-// GET /api/admin/stats
-router.get('/stats', adminAuth, adminController.getPlatformStats);
-
-// GET /api/admin/dashboard
-router.get('/dashboard', adminAuth, adminController.getDashboardOverview);
+// will get all platform stats
+router.get('/stats', adminController.getPlatformStats);
+router.get('/dashboard', adminController.getDashboardOverview);
 
 module.exports = router;

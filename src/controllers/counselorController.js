@@ -1,10 +1,12 @@
 const Counselor = require('../models/counselor');
 const Appointment = require('../models/appointment');
+const Admin = require('../models/admin');
 const SecurityUtils = require('../utils/security');
+const notificationService = require('../services/notificationService');
 const logger = require('../utils/logger');
 
 const counselorController = {
-  // Self-registration for counselors (pending admin approval)
+  // registration for counselors for waiting approval
   register: async (req, res) => {
     try {
       const {
@@ -47,7 +49,6 @@ const counselorController = {
         });
       }
 
-      // Create new counselor with pending status
       const counselor = new Counselor({
         email: SecurityUtils.sanitizeUserInput(email),
         password,
@@ -65,11 +66,34 @@ const counselorController = {
 
       await counselor.save();
 
+      // Send confirmation email to counselor
+      try {
+        await notificationService.sendCounselorRegistrationConfirmation(counselor);
+        logger.info(`Registration confirmation email sent to ${counselor.email}`);
+      } catch (emailError) {
+        logger.error(`Failed to send registration confirmation email to ${counselor.email}:`, emailError);
+      }
+
+      // Send notification email to admins
+      try {
+        const admins = await Admin.find({
+          isActive: true,
+          permissions: { $in: ['approve_counselors'] }
+        });
+
+        for (const admin of admins) {
+          await notificationService.sendAdminNewApplicationAlert(counselor, admin.email);
+          logger.info(`New application alert sent to admin: ${admin.email}`);
+        }
+      } catch (adminEmailError) {
+        logger.error('Failed to send admin notification emails:', adminEmailError);
+      }
+
       logger.info(`New counselor self-registered: ${counselor.email} - Status: Pending Approval`);
 
       res.status(201).json({
         success: true,
-        message: 'Counselor registration submitted successfully. Your account is pending admin approval.',
+        message: 'Counselor registration submitted successfully. Please check your email for confirmation.',
         data: {
           counselor: {
             id: counselor._id,
@@ -86,15 +110,25 @@ const counselorController = {
       logger.error('Counselor registration error:', error);
       res.status(500).json({
         success: false,
-        message: 'Counselor registration failed'
+        message: 'Counselor registration failed',
+        error: error.message
       });
     }
   },
 
-  // Get counselor profile (for verified counselors)
+  // Get counselor profile for verified counselors
   getProfile: async (req, res) => {
     try {
-      const counselor = req.counselor;
+      const counselorId = req.user._id;
+
+      const counselor = await Counselor.findById(counselorId);
+
+      if (!counselor) {
+        return res.status(404).json({
+          success: false,
+          message: 'Counselor not found'
+        });
+      }
 
       res.json({
         success: true,
@@ -112,7 +146,8 @@ const counselorController = {
             totalSessions: counselor.totalSessions,
             averageRating: counselor.averageRating,
             isAvailable: counselor.isAvailable,
-            isVerified: counselor.isVerified
+            isVerified: counselor.isVerified,
+            availability: counselor.availability
           }
         }
       });
@@ -127,21 +162,30 @@ const counselorController = {
   },
 
   // Update counselor availability
-  updateAvailability: async (req, res) => {
+    updateAvailability: async (req, res) => {
     try {
-      const { isAvailable } = req.body;
-      const counselor = req.counselor;
+      const { availability } = req.body;
+      const counselorId = req.user._id;
 
-      counselor.isAvailable = isAvailable;
+      const counselor = await Counselor.findById(counselorId);
+
+      if (!counselor) {
+        return res.status(404).json({
+          success: false,
+          message: 'Counselor not found'
+        });
+      }
+
+      counselor.availability = availability;
       await counselor.save();
 
-      logger.info(`Counselor ${counselor.email} availability updated to: ${isAvailable}`);
+      logger.info(`Counselor ${counselor.email} availability updated`);
 
       res.json({
         success: true,
         message: 'Availability updated successfully',
         data: {
-          isAvailable: counselor.isAvailable
+          availability: counselor.availability
         }
       });
 
@@ -149,12 +193,13 @@ const counselorController = {
       logger.error('Update availability error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to update availability'
+        message: 'Failed to update availability',
+        error: error.message
       });
     }
   },
 
-  // Get all counselors (for users to browse)
+  // Get all counselors for user to browse and book
   getAllCounselors: async (req, res) => {
     try {
       const { specialization, isAvailable } = req.query;
@@ -189,12 +234,13 @@ const counselorController = {
       logger.error('Get counselors error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to retrieve counselors'
+        message: 'Failed to retrieve counselors',
+        error: error.message
       });
     }
   },
 
-  // Get counselor by ID (for appointment booking)
+  // Get counselor by ID for appointment booking
   getCounselorById: async (req, res) => {
     try {
       const { counselorId } = req.params;
@@ -222,12 +268,13 @@ const counselorController = {
       logger.error('Get counselor by ID error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to retrieve counselor details'
+        message: 'Failed to retrieve counselor details',
+        error: error.message
       });
     }
   },
 
-  // Get counselor specializations (for filtering)
+  // Get counselor specializations for filtering
   getSpecializations: async (req, res) => {
     try {
       const specializations = await Counselor.distinct('specialization', {
@@ -253,7 +300,7 @@ const counselorController = {
   // Get counselor's pending appointment requests
   getPendingAppointments: async (req, res) => {
     try {
-      const counselorId = req.counselor._id;
+      const counselorId = req.user._id;
 
       const pendingAppointments = await Appointment.find({
         counselor: counselorId,
@@ -282,7 +329,7 @@ const counselorController = {
   // Get counselor's appointment statistics
   getAppointmentStats: async (req, res) => {
     try {
-      const counselorId = req.counselor._id;
+      const counselorId = req.user._id;
 
       const stats = await Appointment.aggregate([
         { $match: { counselor: counselorId } },

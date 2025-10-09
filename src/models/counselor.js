@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 const argon2 = require('argon2');
 
 const counselorSchema = new mongoose.Schema({
-  // Basic user info (inherits from User model)
   email: {
     type: String,
     required: true,
@@ -41,6 +40,11 @@ const counselorSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  role: {
+    type: String,
+    default: 'counselor',
+    immutable: true
+  },
   licenseNumber: {
     type: String,
     required: true,
@@ -52,7 +56,6 @@ const counselorSchema = new mongoose.Schema({
     required: true,
     enum: [
       'Trauma Counseling',
-      'Crisis Intervention',
       'Domestic Violence',
       'Sexual Assault',
       'Mental Health',
@@ -124,10 +127,39 @@ const counselorSchema = new mongoose.Schema({
     min: 0,
     max: 5
   },
-  isAvailable: {
+    isAvailable: {
     type: Boolean,
     default: true
-  }
+  },
+  availability: [{
+    day: {
+      type: String,
+      enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+      required: true
+    },
+    slots: [{
+      startTime: {
+        type: String,
+        required: true,
+        validate: {
+          validator: function(v) {
+            return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(v);
+          },
+          message: 'Time must be in HH:MM format'
+        }
+      },
+      endTime: {
+        type: String,
+        required: true,
+        validate: {
+          validator: function(v) {
+            return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(v);
+          },
+          message: 'Time must be in HH:MM format'
+        }
+      }
+    }]
+  }]
 }, {
   timestamps: true
 });
