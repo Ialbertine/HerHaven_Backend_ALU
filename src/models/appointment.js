@@ -36,7 +36,7 @@ const appointmentSchema = new mongoose.Schema({
   duration: {
     type: Number,
     required: true,
-    default: 60, // Default 60 minutes
+    default: 60, 
     min: 30,
     max: 180
   },
@@ -44,7 +44,7 @@ const appointmentSchema = new mongoose.Schema({
   // Appointment type and mode
   appointmentType: {
     type: String,
-    enum: ['individual', 'group', 'crisis', 'follow-up'],
+    enum: ['individual', 'group', 'couple'],
     default: 'individual'
   },
 
@@ -61,7 +61,6 @@ const appointmentSchema = new mongoose.Schema({
     default: 'pending'
   },
 
-  // User's reason for seeking help (optional for privacy)
   reason: {
     type: String,
     maxlength: 500,
@@ -71,7 +70,7 @@ const appointmentSchema = new mongoose.Schema({
   // Emergency level
   urgencyLevel: {
     type: String,
-    enum: ['low', 'medium', 'high', 'crisis'],
+    enum: ['low', 'medium', 'high'],
     default: 'medium'
   },
 

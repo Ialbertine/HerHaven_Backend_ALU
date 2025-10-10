@@ -13,15 +13,18 @@ router.post('/book', auth, requireUser, validate(appointmentBookingValidation), 
 // will get user appointments
 router.get('/user', auth, requireUser, appointmentController.getUserAppointments);
 
-// will get counselor appointments
+// will get counselor appointments 
 router.get('/counselor', auth, requireCounselor, appointmentController.getCounselorAppointments);
+
+// counselor routes for appointment
+router.get('/counselor/:counselorId/availability', auth, requireAnyRole, appointmentController.getAvailableTimeSlots);
+
+router.get('/:appointmentId', auth, requireUser, appointmentController.getAppointmentDetails);
+router.get('/:appointmentId/meeting', auth, requireUser, appointmentController.getMeetingDetails);
+
 router.put('/:appointmentId/confirm', auth, requireCounselor, appointmentController.confirmAppointment);
 router.put('/:appointmentId/reject', auth, requireCounselor, appointmentController.rejectAppointment);
 router.put('/:appointmentId/cancel', auth, requireUser, appointmentController.cancelAppointment);
-
-router.get('/:appointmentId', auth, requireUser, appointmentController.getAppointmentDetails);
-router.get('/counselor/:counselorId/availability', auth, requireAnyRole, appointmentController.getAvailableTimeSlots);
-router.get('/:appointmentId/meeting', auth, requireUser, appointmentController.getMeetingDetails);
 router.put('/:appointmentId/start', auth, requireCounselor, appointmentController.startSession);
 router.put('/:appointmentId/end', auth, requireCounselor, appointmentController.endSession);
 

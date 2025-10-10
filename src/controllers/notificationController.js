@@ -151,7 +151,7 @@ const notificationController = {
         message,
         appointment: options.appointment,
         counselor: options.counselor,
-        channels: options.channels || ['in-app'],
+        channels: options.channels || ['inApp'],
         priority: options.priority || 'medium',
         scheduledFor: options.scheduledFor,
         data: options.data
@@ -200,14 +200,14 @@ async function processNotification(notification) {
     case 'appointment_booked':
       if (appointment && counselor) {
         await notificationService.notifyAppointmentBooked(appointment, user, counselor);
-        await notification.markAsSent('in-app');
+        await notification.markAsSent('inApp');
       }
       break;
 
     case 'appointment_confirmed':
       if (appointment && counselor) {
         await notificationService.notifyAppointmentConfirmed(appointment, user, counselor);
-        await notification.markAsSent('in-app');
+        await notification.markAsSent('inApp');
       }
       break;
 

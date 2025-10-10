@@ -38,18 +38,28 @@ const auth = async (req, res, next) => {
         isActive: true,
         isVerified: true,
       });
-    }
 
-    if (user) {
-      user = user.toObject(); 
-      user.role = "counselor"; 
+      // set role to counselor if a counselor was found
+      if (user) {
+        user = user.toObject(); 
+        user.role = "counselor"; 
+      }
     }
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Token is valid but user/admin not found.",
+        message: "Token is valid but user not found.",
       });
+    }
+
+    if (!user.role) {
+      user = user.toObject ? user.toObject() : { ...user };
+      if (user.isSuperAdmin || user.permissions) {
+        user.role = user.isSuperAdmin ? 'super_admin' : 'admin';
+      } else {
+        user.role = 'user';
+      }
     }
 
     req.user = user;
@@ -85,13 +95,11 @@ const optionalAuth = async (req, res, next) => {
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Try User first
       let user = await User.findOne({
         _id: decoded.userId,
         isActive: true,
       });
 
-      // If not found, try Admin
       if (!user) {
         user = await Admin.findOne({
           _id: decoded.userId,
@@ -106,13 +114,22 @@ const optionalAuth = async (req, res, next) => {
           isActive: true,
           isVerified: true,
         });
+
+        if (user) {
+          user = user.toObject();
+          user.role = "counselor";
+        }
       }
 
-      if (user) {
-        user = user.toObject();
-        user.role = "counselor";
+      if (user && !user.role) {
+        user = user.toObject ? user.toObject() : { ...user };
+        if (user.isSuperAdmin || user.permissions) {
+          user.role = user.isSuperAdmin ? 'super_admin' : 'admin';
+        } else {
+          user.role = 'user';
+        }
       }
-
+      
       if (user) {
         req.user = user;
       }
