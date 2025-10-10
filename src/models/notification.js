@@ -56,14 +56,14 @@ const notificationSchema = new mongoose.Schema({
 
   channels: [{
     type: String,
-    enum: ['email', 'in_app'],
+    enum: ['email', 'inApp'],
     required: true
   }],
 
   deliveryStatus: [{
     channel: {
       type: String,
-      enum: ['email', 'in_app']
+      enum: ['email', 'inApp']
     },
     status: {
       type: String,
