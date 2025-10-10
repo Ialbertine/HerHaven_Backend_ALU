@@ -116,12 +116,116 @@ const counselorController = {
     }
   },
 
+  // Update counselor profile 
+  updateProfile: async (req, res) => {
+    try {
+      const counselorId = req.user._id;
+      const { username, phoneNumber, profilePicture } = req.body;
+      const updateData = {};
+      
+      if (username !== undefined) {
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Username can only contain letters, numbers, and underscores'
+          });
+        }
+        
+        if (username.length < 3 || username.length > 30) {
+          return res.status(400).json({
+            success: false,
+            message: 'Username must be between 3 and 30 characters'
+          });
+        }
+
+        // Check if username is already taken
+        const existingCounselor = await Counselor.findOne({ 
+          username, 
+          _id: { $ne: counselorId } 
+        });
+        
+        if (existingCounselor) {
+          return res.status(409).json({
+            success: false,
+            message: 'Username is already taken'
+          });
+        }
+        
+        updateData.username = username;
+      }
+
+      if (phoneNumber !== undefined) {
+        updateData.phoneNumber = phoneNumber;
+      }
+
+      if (profilePicture !== undefined) {
+        updateData.profilePicture = profilePicture;
+      }
+
+      // Check for empty update
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'No valid fields provided for update'
+        });
+      }
+
+      const updatedCounselor = await Counselor.findByIdAndUpdate(
+        counselorId,
+        { $set: updateData },
+        { 
+          new: true, 
+          runValidators: true,
+          select: '-password -inviteToken -loginAttempts -lockUntil'
+        }
+      );
+
+      if (!updatedCounselor) {
+        return res.status(404).json({
+          success: false,
+          message: 'Counselor not found'
+        });
+      }
+      logger.info(`Counselor profile updated: ${updatedCounselor.username}`);
+
+      res.json({
+        success: true,
+        message: 'Profile updated successfully',
+        data: {
+          counselor: {
+            id: updatedCounselor._id,
+            username: updatedCounselor.username,
+            email: updatedCounselor.email,
+            firstName: updatedCounselor.firstName,
+            lastName: updatedCounselor.lastName,
+            phoneNumber: updatedCounselor.phoneNumber,
+            profilePicture: updatedCounselor.profilePicture,
+            specialization: updatedCounselor.specialization,
+            experience: updatedCounselor.experience,
+            bio: updatedCounselor.bio,
+            isVerified: updatedCounselor.isVerified,
+            verificationStatus: updatedCounselor.verificationStatus
+          }
+        }
+      });
+    } catch (error) {
+      logger.error('Update counselor profile error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update profile',
+        error: error.message
+      });
+    }
+  },
+
+
   // Get counselor profile for verified counselors
   getProfile: async (req, res) => {
     try {
       const counselorId = req.user._id;
 
-      const counselor = await Counselor.findById(counselorId);
+      const counselor = await Counselor.findById(counselorId)
+        .select('-password -inviteToken -loginAttempts -lockUntil');
 
       if (!counselor) {
         return res.status(404).json({
@@ -132,24 +236,8 @@ const counselorController = {
 
       res.json({
         success: true,
-        message: 'Counselor profile retrieved',
-        data: {
-          counselor: {
-            id: counselor._id,
-            email: counselor.email,
-            username: counselor.username,
-            firstName: counselor.firstName,
-            lastName: counselor.lastName,
-            specialization: counselor.specialization,
-            experience: counselor.experience,
-            bio: counselor.bio,
-            totalSessions: counselor.totalSessions,
-            averageRating: counselor.averageRating,
-            isAvailable: counselor.isAvailable,
-            isVerified: counselor.isVerified,
-            availability: counselor.availability
-          }
-        }
+        message: 'Profile retrieved successfully',
+        data: { counselor }
       });
 
     } catch (error) {
