@@ -36,6 +36,11 @@ const counselorSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  profilePicture: {
+    type: String,
+    trim: true,
+    default: null
+  },
   role: {
     type: String,
     default: 'counselor',

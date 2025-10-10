@@ -14,6 +14,7 @@ router.get('/specializations/list', counselorController.getSpecializations);
 // private routes
 router.post('/register', validate(counselorRegisterValidation), counselorController.register);
 router.get('/profile', auth, requireCounselor, counselorController.getProfile);
+router.patch('/update-profile', auth, requireCounselor, counselorController.updateProfile);
 router.put('/availability', auth, requireCounselor, counselorController.updateAvailability);
 router.get('/pending-appointments', auth, requireCounselor, counselorController.getPendingAppointments);
 router.get('/appointment-stats', auth, requireCounselor, counselorController.getAppointmentStats);
