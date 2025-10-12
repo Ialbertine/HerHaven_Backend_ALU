@@ -11,7 +11,6 @@ router.use(securityHeaders);
 router.get('/quick-exit', quickExitCheck, safetyController.quickExit);
 
 // GET /api/safety/info public access
-
 router.get('/info', safetyController.safetyCheck);
 
 module.exports = router;

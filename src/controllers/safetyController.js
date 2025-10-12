@@ -1,7 +1,7 @@
 const logger = require('../utils/logger');
 
 const safetyController = {
-    // Quick exit endpoint - immediately redirects to safe site
+    // Quick exit endpoint
     quickExit: (req, res) => {
         try {
             logger.info('Quick exit triggered', {
