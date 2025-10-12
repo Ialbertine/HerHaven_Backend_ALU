@@ -81,42 +81,6 @@ const notificationController = {
     }
   },
 
-  // Mark all notifications as read
-  markAllAsRead: async (req, res) => {
-    try {
-      const userId = req.user._id;
-
-      const result = await Notification.updateMany(
-        {
-          user: userId,
-          status: { $in: ['pending', 'sent'] },
-          readAt: { $exists: false }
-        },
-        {
-          $set: {
-            status: 'read',
-            readAt: new Date()
-          }
-        }
-      );
-
-      res.json({
-        success: true,
-        message: 'All notifications marked as read',
-        data: {
-          modifiedCount: result.modifiedCount
-        }
-      });
-
-    } catch (error) {
-      logger.error('Mark all notifications as read error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to mark all notifications as read'
-      });
-    }
-  },
-
   // Get unread notifications count
   getUnreadCount: async (req, res) => {
     try {
@@ -126,7 +90,7 @@ const notificationController = {
 
       res.json({
         success: true,
-        message: 'Unread count retrieved',
+        message: 'Unread messages retrieved successfully',
         data: {
           unreadCount
         }
@@ -141,7 +105,7 @@ const notificationController = {
     }
   },
 
-  // Create notification (internal use)
+  // Create notification
   createNotification: async (userId, type, title, message, options = {}) => {
     try {
       const notification = new Notification({
@@ -171,7 +135,7 @@ const notificationController = {
     }
   },
 
-  // Process pending notifications (for background job)
+  // Process pending notifications
   processPendingNotifications: async () => {
     try {
       const pendingNotifications = await Notification.getPendingNotifications(50);

@@ -85,7 +85,6 @@ class EmailService {
       <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 8px; }
-        .header { background: #844ae2ff; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
         .content { background: white; padding: 30px; border-radius: 0 0 8px 8px; }
         .btn { display: inline-block; background: #844ae2ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 15px 0; }
         .info-box { background: #f0e6ff; border-left: 4px solid #844ae2ff; padding: 15px; margin: 15px 0; }
@@ -94,10 +93,6 @@ class EmailService {
     </head>
     <body>
       <div class="container">
-        <div class="header">
-          <h1>Welcome to HerHaven!</h1>
-          <h2>Complete Your Counselor Registration</h2>
-        </div>
         
         <div class="content">
           <p>Hello ${counselor.firstName} ${counselor.lastName},</p>
@@ -164,7 +159,6 @@ class EmailService {
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
           .container { max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 8px; }
-          .header { background: #844ae2ff; color: white; padding: 16px; text-align: center; border-radius: 8px 8px 0 0; margin: -20px -20px 20px -20px; }
           .content { background: white; padding: 20px; border-radius: 0 0 8px 8px; }
           .status-badge { background: #ffa500; color: white; padding: 8px 16px; border-radius: 20px; display: inline-block; margin: 10px 0; }
           .info-box { background: #f0f8ff; border-left: 4px solid #844ae2ff; padding: 15px; margin: 15px 0; }
@@ -173,14 +167,11 @@ class EmailService {
         </style>
       </head>
       <body>
-        <div class="container">
-          <div class="header">
-            <h1>HerHaven Platform</h1>
-            <h2>Application Submitted Successfully</h2>
-          </div>
-          
+        <div class="container">    
           <div class="content">
-            <p>Dear <strong>${counselor.firstName} ${counselor.lastName}</strong>,</p>
+            <p>Dear <strong>${counselor.firstName} ${
+      counselor.lastName
+    }</strong>,</p>
             
             <p>Thank you for your interest in joining the HerHaven counseling platform. We have successfully received your counselor application.</p>
             
@@ -239,7 +230,6 @@ class EmailService {
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
           .container { max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 8px; }
-          .header { background: #844ae2ff; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; margin: -20px -20px 20px -20px; }
           .content { background: white; padding: 20px; border-radius: 0 0 8px 8px; }
           .urgent-badge { background:rgb(231, 60, 200); color: white; padding: 8px 16px; border-radius: 20px; display: inline-block; margin: 10px 0; }
           .info-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; }
@@ -249,14 +239,9 @@ class EmailService {
         </style>
       </head>
       <body>
-        <div class="container">
-          <div class="header">
-            <h1>Admin Alert</h1>
-            <h2>New Counselor Application</h2>
-          </div>
-          
+        <div class="container">    
           <div class="content">
-            <p>Hello Admin,</p>
+            <p>Hello,</p>
             
             <p>A new counselor has submitted an application for review on the HerHaven platform.</p>
             
@@ -265,7 +250,9 @@ class EmailService {
             <div class="counselor-info">
               <h3>Counselor Information:</h3>
               <ul>
-                <li><strong>Name:</strong> ${counselor.firstName} ${counselor.lastName}</li>
+                <li><strong>Name:</strong> ${counselor.firstName} ${
+      counselor.lastName
+    }</li>
                 <li><strong>Email:</strong> ${counselor.email}</li>
                 <li><strong>Username:</strong> ${counselor.username}</li>
                 <li><strong>Phone:</strong> ${counselor.phoneNumber}</li>
@@ -342,9 +329,8 @@ class EmailService {
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
           .container { max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 8px; }
-          .header { background: #844ae2ff; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; margin: -20px -20px 20px -20px; }
           .content { background: white; padding: 20px; border-radius: 0 0 8px 8px; }
-          .success-badge { background: #28a745; color: white; padding: 8px 16px; border-radius: 20px; display: inline-block; margin: 10px 0; }
+          .success-badge { background: #844ae2ff; color: white; padding: 8px 16px; border-radius: 20px; display: inline-block; margin: 10px 0; }
           .info-box { background: #e8d4edff; border-left: 4px solid #844ae2ff; padding: 15px; margin: 15px 0; }
           .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
           .btn { display: inline-block; background: #844ae2ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 10px 0; }
@@ -352,13 +338,10 @@ class EmailService {
       </head>
       <body>
         <div class="container">
-          <div class="header">
-            <h1>🎉 Congratulations!</h1>
-            <h2>Application Approved</h2>
-          </div>
-          
           <div class="content">
-            <p>Dear <strong>${counselor.firstName} ${counselor.lastName}</strong>,</p>
+            <p>Dear <strong>${counselor.firstName} ${
+      counselor.lastName
+    }</strong>,</p>
             
             <p>We're thrilled to inform you that your counselor application has been <strong>APPROVED</strong> by our team!</p>
             
@@ -432,7 +415,9 @@ class EmailService {
         <div class="container">
           
           <div class="content">
-            <p>Dear <strong>${counselor.firstName} ${counselor.lastName}</strong>,</p>
+            <p>Dear <strong>${counselor.firstName} ${
+      counselor.lastName
+    }</strong>,</p>
             
             <p>Thank you for your interest in joining the HerHaven counseling platform. After careful review of your application, we regret to inform you that it was not approved at this time.</p>
             <p>We prioritized several factors during our review process, including qualifications, experience, and alignment with our platform's mission. Unfortunately, we found that your application did not fully meet our current requirements.</p>
@@ -467,6 +452,250 @@ class EmailService {
     `;
 
     return await this.sendEmail(counselor.email, subject, htmlContent);
+  }
+
+  // Add this to your EmailService class
+
+  async sendAppointmentBookedToCounselor(counselor, user, appointment) {
+    const subject = "🎉 New Appointment Booked - HerHaven";
+
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>New Appointment</title>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 8px; }
+        .content { background: white; padding: 30px; border-radius: 8px; }
+        .info-box { background: #f0e6ff; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="content">
+          <h2>New Appointment Booked! 🎉</h2>
+          
+          <p>Hello Dr. ${counselor.lastName},</p>
+          
+          <p>You have a new appointment booking with a client:</p>
+          
+          <div class="info-box">
+            <h3>Appointment Details:</h3>
+            <p><strong>Client Name:</strong> ${user.firstName} ${
+      user.lastName
+    }</p>
+            <p><strong>Date:</strong> ${new Date(
+              appointment.appointmentDate
+            ).toLocaleDateString()}</p>
+            <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
+            <p><strong>Status:</strong> ${appointment.status}</p>
+          </div>
+          
+          <p>Please check your counselor dashboard for complete details and to manage your schedule.</p>
+          
+          <p>Best regards,<br>
+          <strong>The HerHaven Team</strong></p>
+        </div>
+        
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} HerHaven. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+    return await this.sendEmail(counselor.email, subject, htmlContent);
+  }
+
+  async sendAppointmentConfirmedToUser(user, counselor, appointment) {
+    const subject = "✅ Appointment Confirmed - HerHaven";
+
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Appointment Confirmed</title>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 8px; }
+        .content { background: white; padding: 30px; border-radius: 8px; }
+        .info-box { background: #e6f7e6; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="content">
+          <h2>Appointment Confirmed! ✅</h2>
+          
+          <p>Hello ${user.firstName},</p>
+          
+          <p>Your appointment has been confirmed by your counselor:</p>
+          
+          <div class="info-box">
+            <h3>Appointment Details:</h3>
+            <p><strong>Counselor:</strong> Dr. ${counselor.lastName}</p>
+            <p><strong>Specialization:</strong> ${counselor.specialization}</p>
+            <p><strong>Date:</strong> ${new Date(
+              appointment.appointmentDate
+            ).toLocaleDateString()}</p>
+            <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
+            <p><strong>Status:</strong> Confirmed</p>
+          </div>
+          
+          <p>We look forward to supporting you on your journey.</p>
+          
+          <p>Best regards,<br>
+          <strong>The HerHaven Team</strong></p>
+        </div>
+        
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} HerHaven. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+    return await this.sendEmail(user.email, subject, htmlContent);
+  }
+
+  async sendAppointmentReminderToUser(
+    user,
+    counselor,
+    appointment,
+    reminderType
+  ) {
+    const timeText = reminderType === "24h" ? "24 hours" : "1 hour";
+    const subject = `Appointment Reminder - ${timeText} to go`;
+
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Appointment Reminder</title>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 8px; }
+        .content { background: white; padding: 30px; border-radius: 8px; }
+        .info-box { background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="content">
+          <h2>Appointment Reminder</h2>
+          
+          <p>Hello ${user.firstName},</p>
+          
+          <p>This is a friendly reminder about your upcoming appointment:</p>
+          
+          <div class="info-box">
+            <h3>Appointment Details:</h3>
+            <p><strong>Counselor:</strong> Dr. ${counselor.lastName}</p>
+            <p><strong>Date:</strong> ${new Date(
+              appointment.appointmentDate
+            ).toLocaleDateString()}</p>
+            <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
+            <p><strong>Starts in:</strong> ${timeText}</p>
+          </div>
+          
+          <p>Please be ready for your session. We're here to support you!</p>
+          
+          <p>Best regards,<br>
+          <strong>The HerHaven Team</strong></p>
+        </div>
+        
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} HerHaven. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+    return await this.sendEmail(user.email, subject, htmlContent);
+  }
+
+  async sendSessionStartingToUser(
+    user,
+    counselor,
+    appointment,
+    meetingLink = null
+  ) {
+    const subject = "Your Session is Starting Soon - HerHaven";
+
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Session Starting</title>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 8px; }
+        .content { background: white; padding: 30px; border-radius: 8px; }
+        .info-box { background: #e6f3ff; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .btn { display: inline-block; background: #844ae2ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 10px 0; }
+        .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="content">
+          <h2>Session Starting Soon!</h2>
+          
+          <p>Hello ${user.firstName},</p>
+          
+          <p>Your counseling session is about to begin:</p>
+          
+          <div class="info-box">
+            <h3>Session Details:</h3>
+            <p><strong>Counselor:</strong> Dr. ${counselor.lastName}</p>
+            <p><strong>Date:</strong> ${new Date(
+              appointment.appointmentDate
+            ).toLocaleDateString()}</p>
+            <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
+            <p><strong>Status:</strong> Starting soon</p>
+          </div>
+          
+          ${
+            meetingLink
+              ? `
+          <p><strong>Join your session:</strong></p>
+          <a href="${meetingLink}" class="btn">Join Session Now</a>
+          `
+              : `
+          <p>Please proceed to your session area in the app.</p>
+          `
+          }
+          
+          <p>We hope you have a productive session!</p>
+          
+          <p>Best regards,<br>
+          <strong>The HerHaven Team</strong></p>
+        </div>
+        
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} HerHaven. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+    return await this.sendEmail(user.email, subject, htmlContent);
   }
 
   stripHtml(html) {

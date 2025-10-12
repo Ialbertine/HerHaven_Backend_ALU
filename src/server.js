@@ -68,7 +68,13 @@ const limiter = rateLimit({
     message: "Too many requests from this IP, please try again later.",
   },
 });
-app.use(limiter);
+app.use((req, res, next) => {
+  if (req.path === "/api/health") {
+    return next();
+  }
+  limiter(req, res, next);
+});
+
 
 // Body parsing middleware
 app.use(express.json({ limit: "10mb" }));
