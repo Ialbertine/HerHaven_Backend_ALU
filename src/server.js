@@ -17,6 +17,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const appointmentRoutes = require("./routes/appointmentRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const feedbackRoutes = require("./routes/feedbackRoutes");
+const communityRoutes = require("./routes/communityRoutes");
 
 // Initialize express app
 const app = express();
@@ -94,6 +95,8 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/feedback", feedbackRoutes);
+app.use("/api/community", communityRoutes);
+
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
