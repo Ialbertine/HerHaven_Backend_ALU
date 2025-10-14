@@ -111,77 +111,37 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Email health check endpoint
+// Simple email health check endpoint
 app.get("/api/email-health", async (req, res) => {
   try {
-    // Import your email service (adjust the path as needed)
-    const EmailService = require("./services/emailService");
-    const emailService = new EmailService();
+    const emailService = require("./services/emailService");
     
-    // Check if email service is initialized
     if (!emailService.transporter) {
       return res.status(503).json({ 
         success: false,
-        status: 'unhealthy', 
-        message: 'Email transporter not initialized' 
+        message: 'Email service not initialized' 
       });
     }
 
-    // Test the SMTP connection
+    // Test connection
     await emailService.transporter.verify();
     
-    // Get email configuration (without showing password)
-    const smtpConfig = {
-      host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT,
-      user: process.env.SMTP_USER,
-      hasPassword: !!process.env.SMTP_PASS,
-      adminEmail: process.env.ADMIN_EMAIL
-    };
-
-    // Optional: Send a test email if ADMIN_EMAIL is set
-    let testEmailResult = null;
-    if (process.env.ADMIN_EMAIL) {
-      testEmailResult = await emailService.sendEmail(
-        process.env.ADMIN_EMAIL,
-        'Email Service Test - HerHaven Backend',
-        `
-          <div style="font-family: Arial, sans-serif; padding: 20px;">
-            <h2>Email Service Test</h2>
-            <p>This is a test email from your HerHaven backend deployed on Render.</p>
-            <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
-            <p><strong>Environment:</strong> ${process.env.NODE_ENV}</p>
-            <p>If you received this email, your email service is working correctly!</p>
-          </div>
-        `,
-        `Email Service Test - ${new Date().toISOString()} - This is a test email from your HerHaven backend.`
-      );
-    }
-
     res.json({
       success: true,
-      status: 'healthy',
       message: 'Email service is working correctly',
-      smtpConfig: smtpConfig,
-      testEmail: testEmailResult,
-      timestamp: new Date().toISOString()
+      config: {
+        host: process.env.SMTP_HOST,
+        user: process.env.SMTP_USER,
+        adminEmail: process.env.ADMIN_EMAIL
+      }
     });
     
   } catch (error) {
     logger.error('Email health check failed:', error);
-    
     res.status(503).json({
       success: false,
-      status: 'unhealthy',
-      message: 'Email service is not working',
-      error: error.message,
-      smtpConfig: {
-        host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT,
-        user: process.env.SMTP_USER,
-        hasPassword: !!process.env.SMTP_PASS
-      },
-      timestamp: new Date().toISOString()
+      message: 'Email service test failed',
+      error: error.message
     });
   }
 });
