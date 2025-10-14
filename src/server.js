@@ -132,7 +132,6 @@ app.get("/api/email-health", async (req, res) => {
       config: {
         host: process.env.SMTP_HOST,
         user: process.env.SMTP_USER,
-        adminEmail: process.env.ADMIN_EMAIL
       }
     });
     
@@ -141,6 +140,75 @@ app.get("/api/email-health", async (req, res) => {
     res.status(503).json({
       success: false,
       message: 'Email service test failed',
+      error: error.message
+    });
+  }
+});
+
+app.post("/api/test-email", async (req, res) => {
+  try {
+    const { toEmail } = req.body;
+    
+    // CHANGE 2: Validate email input
+    if (!toEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide toEmail in request body'
+      });
+    }
+
+    const emailService = require("./services/emailService");
+    
+    // CHANGE 3: Check if email service is initialized
+    if (!emailService.transporter) {
+      logger.error('Email transporter not initialized');
+      return res.status(503).json({ 
+        success: false,
+        message: 'Email service not initialized',
+        details: 'Check server logs for initialization errors'
+      });
+    }
+
+    // CHANGE 4: Log the attempt
+    logger.info(`Testing email send to: ${toEmail}`);
+
+    // CHANGE 5: Send a simple test email
+    const result = await emailService.sendEmail(
+      toEmail,
+      "Test Email from HerHaven",
+      `
+        <h2>Test Email</h2>
+        <p>This is a test email from your HerHaven API deployed on Render.</p>
+        <p>If you received this, your email service is working correctly!</p>
+        <p>Timestamp: ${new Date().toISOString()}</p>
+      `,
+      "This is a test email from HerHaven API"
+    );
+
+    // CHANGE 6: Return detailed result
+    if (result.success) {
+      logger.info('Test email sent successfully');
+      res.json({
+        success: true,
+        message: 'Test email sent successfully!',
+        messageId: result.messageId,
+        sentTo: toEmail
+      });
+    } else {
+      logger.error('Test email failed:', result.error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to send test email',
+        error: result.error,
+        errorCode: result.errorCode
+      });
+    }
+    
+  } catch (error) {
+    logger.error('Test email endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Test email failed',
       error: error.message
     });
   }

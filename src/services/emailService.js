@@ -10,59 +10,98 @@ class EmailService {
 
  initializeTransporter() {
   try {
+    // CHANGE 1: Added more detailed logging to help debug on Render
+    logger.info("=== EMAIL SERVICE INITIALIZATION ===");
+    logger.info(`SMTP_HOST: ${process.env.SMTP_HOST || "NOT SET"}`);
+    logger.info(`SMTP_PORT: ${process.env.SMTP_PORT || "NOT SET"}`);
+    logger.info(`SMTP_SECURE: ${process.env.SMTP_SECURE || "NOT SET"}`);
+    logger.info(`SMTP_USER: ${process.env.SMTP_USER ? "SET" : "NOT SET"}`);
+    logger.info(`SMTP_PASS: ${process.env.SMTP_PASS ? "SET" : "NOT SET"}`);
+
     // Check if required environment variables are set
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
       logger.error("SMTP_USER and SMTP_PASS environment variables are required for email service");
       return;
     }
 
-    // Convert SMTP_SECURE to boolean properly
-    const isSecure = process.env.SMTP_SECURE === "true" || 
-                    process.env.SMTP_SECURE === "1" || 
-                    false;
+    // CHANGE 2: Converted SMTP_PORT to number (Render might pass it as string)
+    const smtpPort = parseInt(process.env.SMTP_PORT || "587", 10);
+    
+    // CHANGE 3: Properly handle SMTP_SECURE as boolean (Render passes as string)
+    const isSecure = process.env.SMTP_SECURE === "true";
 
+    // CHANGE 4: Added more robust configuration with fallbacks
     this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || "smtp.gmail.com",
-      port: parseInt(process.env.SMTP_PORT) || 587, // Ensure port is a number
-      secure: isSecure,
+      port: smtpPort,
+      secure: isSecure, // true for 465, false for other ports
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      // CHANGE 5: Added more TLS options for better compatibility with Render
       tls: {
         rejectUnauthorized: false,
+        ciphers: 'SSLv3' // Added for compatibility
       },
-      // Add connection timeout for production
-      connectionTimeout: 10000,
+      // CHANGE 6: Added connection timeout and other useful options
+      connectionTimeout: 10000, // 10 seconds
       greetingTimeout: 10000,
       socketTimeout: 10000,
+      // CHANGE 7: Added debug mode (can be enabled via env variable)
+      debug: process.env.SMTP_DEBUG === "true",
+      logger: process.env.SMTP_DEBUG === "true"
     });
 
+    // CHANGE 8: Made verification async and added more detailed error logging
     this.transporter.verify((error) => {
       if (error) {
-        logger.error("Email service initialization failed:", error);
+        logger.error("=== EMAIL SERVICE VERIFICATION FAILED ===");
+        logger.error(`Error name: ${error.name}`);
+        logger.error(`Error message: ${error.message}`);
+        logger.error(`Error code: ${error.code}`);
+        logger.error(`Error stack: ${error.stack}`);
         logger.error("Please check your SMTP configuration in environment variables");
-        // Log specific configuration for debugging
-        logger.error(`SMTP Config - Host: ${process.env.SMTP_HOST}, Port: ${process.env.SMTP_PORT}, User: ${process.env.SMTP_USER}, Secure: ${isSecure}`);
+        
+        // CHANGE 9: Added specific error guidance
+        if (error.code === 'EAUTH') {
+          logger.error("Authentication failed. Check if:");
+          logger.error("1. Your Gmail App Password is correct");
+          logger.error("2. 2-Step Verification is enabled");
+          logger.error("3. App Password was created correctly");
+        } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNECTION') {
+          logger.error("Connection timeout. This might be a network issue on Render.");
+          logger.error("Try checking if Render has any firewall restrictions.");
+        }
       } else {
-        logger.info("Email service initialized successfully");
+        logger.info("=== EMAIL SERVICE VERIFIED SUCCESSFULLY ===");
         logger.info(`SMTP Host: ${process.env.SMTP_HOST || "smtp.gmail.com"}`);
-        logger.info(`SMTP Port: ${process.env.SMTP_PORT || 587}`);
-        logger.info(`SMTP Secure: ${isSecure}`);
         logger.info(`SMTP User: ${process.env.SMTP_USER}`);
-        logger.info(`Admin Email: ${process.env.ADMIN_EMAIL}`);
+        logger.info(`SMTP Port: ${smtpPort}`);
+        logger.info(`SMTP Secure: ${isSecure}`);
       }
     });
   } catch (error) {
-    logger.error("Failed to initialize email service:", error);
+    logger.error("=== FAILED TO INITIALIZE EMAIL SERVICE ===");
+    logger.error(`Error: ${error.message}`);
+    logger.error(`Stack: ${error.stack}`);
   }
 }
 
+// ===== CHANGES TO sendEmail() METHOD =====
+
 async sendEmail(to, subject, htmlContent, textContent = null) {
   try {
+    // CHANGE 10: Added check if transporter exists
     if (!this.transporter) {
-      logger.error("Email transporter not initialized");
-      throw new Error("Email service not available");
+      const errorMsg = "Email transporter not initialized. Check server logs for initialization errors.";
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    // CHANGE 11: Added validation for recipient email
+    if (!to || typeof to !== 'string' || !to.includes('@')) {
+      throw new Error(`Invalid recipient email: ${to}`);
     }
 
     const mailOptions = {
@@ -71,18 +110,18 @@ async sendEmail(to, subject, htmlContent, textContent = null) {
       subject: subject,
       html: htmlContent,
       text: textContent || this.stripHtml(htmlContent),
-      // Add headers for better deliverability
-      headers: {
-        'X-Priority': '1',
-        'X-MSMail-Priority': 'High',
-        'Importance': 'high'
-      }
     };
 
-    logger.info(`Attempting to send email to: ${to}, Subject: ${subject}`);
-    
+    // CHANGE 12: Added more detailed logging before sending
+    logger.info(`Attempting to send email to: ${to}`);
+    logger.info(`Subject: ${subject}`);
+
     const result = await this.transporter.sendMail(mailOptions);
-    logger.info(`Email sent successfully to ${to}: ${result.messageId}`);
+    
+    // CHANGE 13: Enhanced success logging
+    logger.info(`✓ Email sent successfully to ${to}`);
+    logger.info(`Message ID: ${result.messageId}`);
+    logger.info(`Response: ${result.response}`);
 
     return {
       success: true,
@@ -90,24 +129,30 @@ async sendEmail(to, subject, htmlContent, textContent = null) {
       message: "Email sent successfully",
     };
   } catch (error) {
-    logger.error(`Failed to send email to ${to}:`, error);
+    // CHANGE 14: Enhanced error logging with more details
+    logger.error(`✗ Failed to send email to ${to}`);
+    logger.error(`Error name: ${error.name}`);
+    logger.error(`Error message: ${error.message}`);
+    logger.error(`Error code: ${error.code}`);
     
-    // More detailed error logging
-    if (error.code) {
-      logger.error(`SMTP Error Code: ${error.code}`);
+    // CHANGE 15: Added specific error messages based on error type
+    let userFriendlyMessage = "Failed to send email";
+    if (error.code === 'EAUTH') {
+      userFriendlyMessage = "Email authentication failed. Please contact support.";
+    } else if (error.code === 'ETIMEDOUT') {
+      userFriendlyMessage = "Email service timeout. Please try again later.";
+    } else if (error.code === 'ECONNECTION') {
+      userFriendlyMessage = "Could not connect to email service. Please try again later.";
     }
-    if (error.response) {
-      logger.error(`SMTP Response: ${error.response}`);
-    }
-    
+
     return {
       success: false,
       error: error.message,
-      message: "Failed to send email",
+      errorCode: error.code,
+      message: userFriendlyMessage,
     };
   }
 }
-
   // send counselor invitation email
 
   async sendCounselorInvitation(counselor, inviteToken) {
