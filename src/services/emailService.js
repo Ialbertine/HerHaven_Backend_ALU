@@ -8,73 +8,105 @@ class EmailService {
     this.initializeTransporter();
   }
 
-  initializeTransporter() {
-    try {
-      // Check if required environment variables are set
-      if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        logger.error("SMTP_USER and SMTP_PASS environment variables are required for email service");
-        return;
-      }
-
-      this.transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || "smtp.gmail.com",
-        port: process.env.SMTP_PORT || 587,
-        secure: process.env.SMTP_SECURE === "true",
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-        tls: {
-          rejectUnauthorized: false,
-        },
-      });
-
-      this.transporter.verify((error) => {
-        if (error) {
-          logger.error("Email service initialization failed:", error);
-          logger.error("Please check your SMTP configuration in environment variables");
-        } else {
-          logger.info("Email service initialized successfully");
-          logger.info(`SMTP Host: ${process.env.SMTP_HOST || "smtp.gmail.com"}`);
-          logger.info(`SMTP User: ${process.env.SMTP_USER}`);
-        }
-      });
-    } catch (error) {
-      logger.error("Failed to initialize email service:", error);
+ initializeTransporter() {
+  try {
+    // Check if required environment variables are set
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      logger.error("SMTP_USER and SMTP_PASS environment variables are required for email service");
+      return;
     }
-  }
 
-  async sendEmail(to, subject, htmlContent, textContent = null) {
-    try {
-      if (!this.transporter) {
-        throw new Error("Email transporter not initialized");
+    // Convert SMTP_SECURE to boolean properly
+    const isSecure = process.env.SMTP_SECURE === "true" || 
+                    process.env.SMTP_SECURE === "1" || 
+                    false;
+
+    this.transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || "smtp.gmail.com",
+      port: parseInt(process.env.SMTP_PORT) || 587, // Ensure port is a number
+      secure: isSecure,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+      // Add connection timeout for production
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
+    });
+
+    this.transporter.verify((error) => {
+      if (error) {
+        logger.error("Email service initialization failed:", error);
+        logger.error("Please check your SMTP configuration in environment variables");
+        // Log specific configuration for debugging
+        logger.error(`SMTP Config - Host: ${process.env.SMTP_HOST}, Port: ${process.env.SMTP_PORT}, User: ${process.env.SMTP_USER}, Secure: ${isSecure}`);
+      } else {
+        logger.info("Email service initialized successfully");
+        logger.info(`SMTP Host: ${process.env.SMTP_HOST || "smtp.gmail.com"}`);
+        logger.info(`SMTP Port: ${process.env.SMTP_PORT || 587}`);
+        logger.info(`SMTP Secure: ${isSecure}`);
+        logger.info(`SMTP User: ${process.env.SMTP_USER}`);
+        logger.info(`Admin Email: ${process.env.ADMIN_EMAIL}`);
       }
-
-      const mailOptions = {
-        from: `"HerHaven Platform" <${process.env.SMTP_USER}>`,
-        to: to,
-        subject: subject,
-        html: htmlContent,
-        text: textContent || this.stripHtml(htmlContent),
-      };
-
-      const result = await this.transporter.sendMail(mailOptions);
-      logger.info(`Email sent successfully to ${to}: ${result.messageId}`);
-
-      return {
-        success: true,
-        messageId: result.messageId,
-        message: "Email sent successfully",
-      };
-    } catch (error) {
-      logger.error(`Failed to send email to ${to}:`, error);
-      return {
-        success: false,
-        error: error.message,
-        message: "Failed to send email",
-      };
-    }
+    });
+  } catch (error) {
+    logger.error("Failed to initialize email service:", error);
   }
+}
+
+async sendEmail(to, subject, htmlContent, textContent = null) {
+  try {
+    if (!this.transporter) {
+      logger.error("Email transporter not initialized");
+      throw new Error("Email service not available");
+    }
+
+    const mailOptions = {
+      from: `"HerHaven Platform" <${process.env.SMTP_USER}>`,
+      to: to,
+      subject: subject,
+      html: htmlContent,
+      text: textContent || this.stripHtml(htmlContent),
+      // Add headers for better deliverability
+      headers: {
+        'X-Priority': '1',
+        'X-MSMail-Priority': 'High',
+        'Importance': 'high'
+      }
+    };
+
+    logger.info(`Attempting to send email to: ${to}, Subject: ${subject}`);
+    
+    const result = await this.transporter.sendMail(mailOptions);
+    logger.info(`Email sent successfully to ${to}: ${result.messageId}`);
+
+    return {
+      success: true,
+      messageId: result.messageId,
+      message: "Email sent successfully",
+    };
+  } catch (error) {
+    logger.error(`Failed to send email to ${to}:`, error);
+    
+    // More detailed error logging
+    if (error.code) {
+      logger.error(`SMTP Error Code: ${error.code}`);
+    }
+    if (error.response) {
+      logger.error(`SMTP Response: ${error.response}`);
+    }
+    
+    return {
+      success: false,
+      error: error.message,
+      message: "Failed to send email",
+    };
+  }
+}
 
   // send counselor invitation email
 
