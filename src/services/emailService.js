@@ -10,6 +10,12 @@ class EmailService {
 
   initializeTransporter() {
     try {
+      // Check if required environment variables are set
+      if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        logger.error("SMTP_USER and SMTP_PASS environment variables are required for email service");
+        return;
+      }
+
       this.transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST || "smtp.gmail.com",
         port: process.env.SMTP_PORT || 587,
@@ -26,8 +32,11 @@ class EmailService {
       this.transporter.verify((error) => {
         if (error) {
           logger.error("Email service initialization failed:", error);
+          logger.error("Please check your SMTP configuration in environment variables");
         } else {
           logger.info("Email service initialized successfully");
+          logger.info(`SMTP Host: ${process.env.SMTP_HOST || "smtp.gmail.com"}`);
+          logger.info(`SMTP User: ${process.env.SMTP_USER}`);
         }
       });
     } catch (error) {
@@ -70,9 +79,8 @@ class EmailService {
   // send counselor invitation email
 
   async sendCounselorInvitation(counselor, inviteToken) {
-    const registrationLink = `${
-      process.env.CLIENT_URL || "http://localhost:3000"
-    }/counselor/complete-registration/${inviteToken}`;
+    const registrationLink = `${process.env.CLIENT_URL || "http://localhost:5000"
+      }/counselor/complete-registration/${inviteToken}`;
     const subject = "🎉 You're Invited to Join HerHaven as a Counselor";
 
     const htmlContent = `
@@ -169,9 +177,8 @@ class EmailService {
       <body>
         <div class="container">    
           <div class="content">
-            <p>Dear <strong>${counselor.firstName} ${
-      counselor.lastName
-    }</strong>,</p>
+            <p>Dear <strong>${counselor.firstName} ${counselor.lastName
+      }</strong>,</p>
             
             <p>Thank you for your interest in joining the HerHaven counseling platform. We have successfully received your counselor application.</p>
             
@@ -182,15 +189,12 @@ class EmailService {
               <ul>
                 <li><strong>Email:</strong> ${counselor.email}</li>
                 <li><strong>Username:</strong> ${counselor.username}</li>
-                <li><strong>Specialization:</strong> ${
-                  counselor.specialization
-                }</li>
-                <li><strong>Experience:</strong> ${
-                  counselor.experience
-                } years</li>
-                <li><strong>License Number:</strong> ${
-                  counselor.licenseNumber
-                }</li>
+                <li><strong>Specialization:</strong> ${counselor.specialization
+      }</li>
+                <li><strong>Experience:</strong> ${counselor.experience
+      } years</li>
+                <li><strong>License Number:</strong> ${counselor.licenseNumber
+      }</li>
                 <li><strong>Application ID:</strong> ${counselor._id}</li>
               </ul>
             </div>
@@ -250,32 +254,27 @@ class EmailService {
             <div class="counselor-info">
               <h3>Counselor Information:</h3>
               <ul>
-                <li><strong>Name:</strong> ${counselor.firstName} ${
-      counselor.lastName
-    }</li>
+                <li><strong>Name:</strong> ${counselor.firstName} ${counselor.lastName
+      }</li>
                 <li><strong>Email:</strong> ${counselor.email}</li>
                 <li><strong>Username:</strong> ${counselor.username}</li>
                 <li><strong>Phone:</strong> ${counselor.phoneNumber}</li>
-                <li><strong>Specialization:</strong> ${
-                  counselor.specialization
-                }</li>
-                <li><strong>Experience:</strong> ${
-                  counselor.experience
-                } years</li>
-                <li><strong>License Number:</strong> ${
-                  counselor.licenseNumber
-                }</li>
+                <li><strong>Specialization:</strong> ${counselor.specialization
+      }</li>
+                <li><strong>Experience:</strong> ${counselor.experience
+      } years</li>
+                <li><strong>License Number:</strong> ${counselor.licenseNumber
+      }</li>
                 <li><strong>Application ID:</strong> ${counselor._id}</li>
                 <li><strong>Applied:</strong> ${new Date(
-                  counselor.createdAt
-                ).toLocaleString()}</li>
+        counselor.createdAt
+      ).toLocaleString()}</li>
               </ul>
               
-              ${
-                counselor.bio
-                  ? `<p><strong>Bio:</strong><br>${counselor.bio}</p>`
-                  : ""
-              }
+              ${counselor.bio
+        ? `<p><strong>Bio:</strong><br>${counselor.bio}</p>`
+        : ""
+      }
             </div>
             
             <div class="info-box">
@@ -284,9 +283,8 @@ class EmailService {
             </div>
             
             <p><strong>Quick Access:</strong></p>
-            <a href="${
-              process.env.CLIENT_URL || "http://localhost:5000"
-            }/api/auth/login" class="btn">
+            <a href="${process.env.CLIENT_URL || "http://localhost:5000"
+      }/api/auth/login" class="btn">
               Login to Admin Dashboard
             </a>
             
@@ -339,9 +337,8 @@ class EmailService {
       <body>
         <div class="container">
           <div class="content">
-            <p>Dear <strong>${counselor.firstName} ${
-      counselor.lastName
-    }</strong>,</p>
+            <p>Dear <strong>${counselor.firstName} ${counselor.lastName
+      }</strong>,</p>
             
             <p>We're thrilled to inform you that your counselor application has been <strong>APPROVED</strong> by our team!</p>
             
@@ -358,9 +355,8 @@ class EmailService {
             
             <p><strong>Access Your Dashboard:</strong></p>
 
-            <a href="${
-              process.env.CLIENT_URL || "http://localhost:5000"
-            }/api/auth/login" class="btn">
+            <a href="${process.env.CLIENT_URL || "http://localhost:5000"
+      }/api/auth/login" class="btn">
               Login to access your dashboard
             </a>
             
@@ -415,9 +411,8 @@ class EmailService {
         <div class="container">
           
           <div class="content">
-            <p>Dear <strong>${counselor.firstName} ${
-      counselor.lastName
-    }</strong>,</p>
+            <p>Dear <strong>${counselor.firstName} ${counselor.lastName
+      }</strong>,</p>
             
             <p>Thank you for your interest in joining the HerHaven counseling platform. After careful review of your application, we regret to inform you that it was not approved at this time.</p>
             <p>We prioritized several factors during our review process, including qualifications, experience, and alignment with our platform's mission. Unfortunately, we found that your application did not fully meet our current requirements.</p>
@@ -426,13 +421,11 @@ class EmailService {
             
             <div class="info-box">
               <h4>Feedback:</h4>
-              <p><strong>Reason:</strong> ${
-                rejectionReason ||
-                "Application does not meet current platform requirements."
-              }</p>
-              <p><strong>Reviewed by:</strong> ${
-                rejectedByAdmin?.firstName || "Admin"
-              } ${rejectedByAdmin?.lastName || ""}</p>
+              <p><strong>Reason:</strong> ${rejectionReason ||
+      "Application does not meet current platform requirements."
+      }</p>
+              <p><strong>Reviewed by:</strong> ${rejectedByAdmin?.firstName || "Admin"
+      } ${rejectedByAdmin?.lastName || ""}</p>
               <p><strong>Review Date:</strong> ${new Date().toLocaleDateString()}</p>
             </div>
             
@@ -485,12 +478,11 @@ class EmailService {
           
           <div class="info-box">
             <h3>Appointment Details:</h3>
-            <p><strong>Client Name:</strong> ${user.firstName} ${
-      user.lastName
-    }</p>
+            <p><strong>Client Name:</strong> ${user.firstName} ${user.lastName
+      }</p>
             <p><strong>Date:</strong> ${new Date(
-              appointment.appointmentDate
-            ).toLocaleDateString()}</p>
+        appointment.appointmentDate
+      ).toLocaleDateString()}</p>
             <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
             <p><strong>Status:</strong> ${appointment.status}</p>
           </div>
@@ -544,8 +536,8 @@ class EmailService {
             <p><strong>Counselor:</strong> Dr. ${counselor.lastName}</p>
             <p><strong>Specialization:</strong> ${counselor.specialization}</p>
             <p><strong>Date:</strong> ${new Date(
-              appointment.appointmentDate
-            ).toLocaleDateString()}</p>
+      appointment.appointmentDate
+    ).toLocaleDateString()}</p>
             <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
             <p><strong>Status:</strong> Confirmed</p>
           </div>
@@ -604,8 +596,8 @@ class EmailService {
             <h3>Appointment Details:</h3>
             <p><strong>Counselor:</strong> Dr. ${counselor.lastName}</p>
             <p><strong>Date:</strong> ${new Date(
-              appointment.appointmentDate
-            ).toLocaleDateString()}</p>
+      appointment.appointmentDate
+    ).toLocaleDateString()}</p>
             <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
             <p><strong>Starts in:</strong> ${timeText}</p>
           </div>
@@ -664,22 +656,21 @@ class EmailService {
             <h3>Session Details:</h3>
             <p><strong>Counselor:</strong> Dr. ${counselor.lastName}</p>
             <p><strong>Date:</strong> ${new Date(
-              appointment.appointmentDate
-            ).toLocaleDateString()}</p>
+      appointment.appointmentDate
+    ).toLocaleDateString()}</p>
             <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
             <p><strong>Status:</strong> Starting soon</p>
           </div>
           
-          ${
-            meetingLink
-              ? `
+          ${meetingLink
+        ? `
           <p><strong>Join your session:</strong></p>
           <a href="${meetingLink}" class="btn">Join Session Now</a>
           `
-              : `
+        : `
           <p>Please proceed to your session area in the app.</p>
           `
-          }
+      }
           
           <p>We hope you have a productive session!</p>
           

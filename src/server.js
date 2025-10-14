@@ -22,6 +22,9 @@ const communityRoutes = require("./routes/communityRoutes");
 // Initialize express app
 const app = express();
 
+// Trust proxy for rate limiting
+app.set('trust proxy', 1);
+
 // Connect to database
 connectDB();
 
@@ -35,7 +38,7 @@ app.use(
 // CORS configuration
 const allowedOrigins = [
   "http://localhost:5173",
-  "http://localhost:3000",
+  "http://localhost:5174",
   "https://ialbertine-herhaven.netlify.app",
   process.env.CLIENT_URL,
 ].filter(Boolean);

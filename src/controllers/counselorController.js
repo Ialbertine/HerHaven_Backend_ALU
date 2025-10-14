@@ -66,31 +66,7 @@ const counselorController = {
 
       await counselor.save();
 
-      // Send confirmation email to counselor
-      try {
-        await notificationService.sendCounselorRegistrationConfirmation(counselor);
-        logger.info(`Registration confirmation email sent to ${counselor.email}`);
-      } catch (emailError) {
-        logger.error(`Failed to send registration confirmation email to ${counselor.email}:`, emailError);
-      }
-
-      // Send notification email to admins
-      try {
-        const admins = await Admin.find({
-          isActive: true,
-          permissions: { $in: ['approve_counselors'] }
-        });
-
-        for (const admin of admins) {
-          await notificationService.sendAdminNewApplicationAlert(counselor, admin.email);
-          logger.info(`New application alert sent to admin: ${admin.email}`);
-        }
-      } catch (adminEmailError) {
-        logger.error('Failed to send admin notification emails:', adminEmailError);
-      }
-
-      logger.info(`New counselor self-registered: ${counselor.email} - Status: Pending Approval`);
-
+      // Send response immediately to prevent frontend delays
       res.status(201).json({
         success: true,
         message: 'Counselor registration submitted successfully. Please check your email for confirmation.',
@@ -104,6 +80,38 @@ const counselorController = {
             submittedAt: counselor.createdAt
           }
         }
+      });
+
+      // Send emails asynchronously after response
+      process.nextTick(async () => {
+        try {
+          // Send confirmation email to counselor
+          await notificationService.sendCounselorRegistrationConfirmation(counselor);
+          logger.info(`Registration confirmation email sent to ${counselor.email}`);
+        } catch (emailError) {
+          logger.error(`Failed to send registration confirmation email to ${counselor.email}:`, emailError);
+        }
+
+        // Send notification email to admins
+        try {
+          const admins = await Admin.find({
+            isActive: true,
+            permissions: { $in: ['approve_counselors'] }
+          });
+
+          // Send admin emails in parallel instead of sequential
+          const adminEmailPromises = admins.map(admin =>
+            notificationService.sendAdminNewApplicationAlert(counselor, admin.email)
+              .then(() => logger.info(`New application alert sent to admin: ${admin.email}`))
+              .catch(error => logger.error(`Failed to send alert to admin ${admin.email}:`, error))
+          );
+
+          await Promise.all(adminEmailPromises);
+        } catch (adminEmailError) {
+          logger.error('Failed to send admin notification emails:', adminEmailError);
+        }
+
+        logger.info(`New counselor self-registered: ${counselor.email} - Status: Pending Approval`);
       });
 
     } catch (error) {
@@ -122,7 +130,7 @@ const counselorController = {
       const counselorId = req.user._id;
       const { username, phoneNumber, profilePicture } = req.body;
       const updateData = {};
-      
+
       if (username !== undefined) {
         if (!/^[a-zA-Z0-9_]+$/.test(username)) {
           return res.status(400).json({
@@ -130,7 +138,7 @@ const counselorController = {
             message: 'Username can only contain letters, numbers, and underscores'
           });
         }
-        
+
         if (username.length < 3 || username.length > 30) {
           return res.status(400).json({
             success: false,
@@ -139,18 +147,18 @@ const counselorController = {
         }
 
         // Check if username is already taken
-        const existingCounselor = await Counselor.findOne({ 
-          username, 
-          _id: { $ne: counselorId } 
+        const existingCounselor = await Counselor.findOne({
+          username,
+          _id: { $ne: counselorId }
         });
-        
+
         if (existingCounselor) {
           return res.status(409).json({
             success: false,
             message: 'Username is already taken'
           });
         }
-        
+
         updateData.username = username;
       }
 
@@ -173,8 +181,8 @@ const counselorController = {
       const updatedCounselor = await Counselor.findByIdAndUpdate(
         counselorId,
         { $set: updateData },
-        { 
-          new: true, 
+        {
+          new: true,
           runValidators: true,
           select: '-password -inviteToken -loginAttempts -lockUntil'
         }
@@ -250,7 +258,7 @@ const counselorController = {
   },
 
   // Update counselor availability
-    updateAvailability: async (req, res) => {
+  updateAvailability: async (req, res) => {
     try {
       const { availability } = req.body;
       const counselorId = req.user._id;
