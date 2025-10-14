@@ -1,5 +1,5 @@
 const CommunityPost = require("../models/community");
-const Comment = require("../models/Comment");
+const Comment = require("../models/comment");
 const { validateObjectId, sanitizeHtml } = require('../validations/postValidation');
 const logger = require('../utils/logger');
 
