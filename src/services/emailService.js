@@ -1,163 +1,121 @@
 require("dotenv").config();
-const nodemailer = require("nodemailer");
+const sgMail = require("@sendgrid/mail");
 const logger = require("../utils/logger");
 
 class EmailService {
   constructor() {
-    this.transporter = null;
-    this.initializeTransporter();
+    this.isInitialized = false;
+    this.initializeSendGrid();
   }
 
- initializeTransporter() {
-  try {
-    // CHANGE 1: Added more detailed logging to help debug on Render
-    logger.info("=== EMAIL SERVICE INITIALIZATION ===");
-    logger.info(`SMTP_HOST: ${process.env.SMTP_HOST || "NOT SET"}`);
-    logger.info(`SMTP_PORT: ${process.env.SMTP_PORT || "NOT SET"}`);
-    logger.info(`SMTP_SECURE: ${process.env.SMTP_SECURE || "NOT SET"}`);
-    logger.info(`SMTP_USER: ${process.env.SMTP_USER ? "SET" : "NOT SET"}`);
-    logger.info(`SMTP_PASS: ${process.env.SMTP_PASS ? "SET" : "NOT SET"}`);
-
-    // Check if required environment variables are set
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-      logger.error("SMTP_USER and SMTP_PASS environment variables are required for email service");
-      return;
-    }
-
-    // CHANGE 2: Converted SMTP_PORT to number (Render might pass it as string)
-    const smtpPort = parseInt(process.env.SMTP_PORT || "587", 10);
-    
-    // CHANGE 3: Properly handle SMTP_SECURE as boolean (Render passes as string)
-    const isSecure = process.env.SMTP_SECURE === "true";
-
-    // CHANGE 4: Added more robust configuration with fallbacks
-    this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || "smtp.gmail.com",
-      port: smtpPort,
-      secure: isSecure, // true for 465, false for other ports
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-      // CHANGE 5: Added more TLS options for better compatibility with Render
-      tls: {
-        rejectUnauthorized: false,
-        ciphers: 'SSLv3' // Added for compatibility
-      },
-      // CHANGE 6: Added connection timeout and other useful options
-      connectionTimeout: 10000, // 10 seconds
-      greetingTimeout: 10000,
-      socketTimeout: 10000,
-      // CHANGE 7: Added debug mode (can be enabled via env variable)
-      debug: process.env.SMTP_DEBUG === "true",
-      logger: process.env.SMTP_DEBUG === "true"
-    });
-
-    // CHANGE 8: Made verification async and added more detailed error logging
-    this.transporter.verify((error) => {
-      if (error) {
-        logger.error("=== EMAIL SERVICE VERIFICATION FAILED ===");
-        logger.error(`Error name: ${error.name}`);
-        logger.error(`Error message: ${error.message}`);
-        logger.error(`Error code: ${error.code}`);
-        logger.error(`Error stack: ${error.stack}`);
-        logger.error("Please check your SMTP configuration in environment variables");
-        
-        // CHANGE 9: Added specific error guidance
-        if (error.code === 'EAUTH') {
-          logger.error("Authentication failed. Check if:");
-          logger.error("1. Your Gmail App Password is correct");
-          logger.error("2. 2-Step Verification is enabled");
-          logger.error("3. App Password was created correctly");
-        } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNECTION') {
-          logger.error("Connection timeout. This might be a network issue on Render.");
-          logger.error("Try checking if Render has any firewall restrictions.");
-        }
-      } else {
-        logger.info("=== EMAIL SERVICE VERIFIED SUCCESSFULLY ===");
-        logger.info(`SMTP Host: ${process.env.SMTP_HOST || "smtp.gmail.com"}`);
-        logger.info(`SMTP User: ${process.env.SMTP_USER}`);
-        logger.info(`SMTP Port: ${smtpPort}`);
-        logger.info(`SMTP Secure: ${isSecure}`);
+  initializeSendGrid() {
+    try {
+      // Check for SendGrid API key
+      if (!process.env.SENDGRID_API_KEY) {
+        logger.error("SENDGRID_API_KEY environment variable is required");
+        return;
       }
-    });
-  } catch (error) {
-    logger.error("=== FAILED TO INITIALIZE EMAIL SERVICE ===");
-    logger.error(`Error: ${error.message}`);
-    logger.error(`Stack: ${error.stack}`);
+
+      if (!process.env.SMTP_USER) {
+        logger.error(
+          "sender email environment variable is required"
+        );
+        return;
+      }
+
+      // Initialize SendGrid with API key
+      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+      this.isInitialized = true;
+
+      logger.info("SendGrid email service initialized successfully");
+      logger.info(`Sender email: ${process.env.SMTP_USER}`);
+    } catch (error) {
+      logger.error(`Error: ${error.message}`);
+      this.isInitialized = false;
+    }
   }
-}
 
-// ===== CHANGES TO sendEmail() METHOD =====
+  async sendEmail(to, subject, htmlContent, textContent = null) {
+    try {
+      // Check if SendGrid is initialized
+      if (!this.isInitialized) {
+        const errorMsg = "SendGrid not initialized. Check server logs.";
+        logger.error(errorMsg);
+        throw new Error(errorMsg);
+      }
 
-async sendEmail(to, subject, htmlContent, textContent = null) {
-  try {
-    // CHANGE 10: Added check if transporter exists
-    if (!this.transporter) {
-      const errorMsg = "Email transporter not initialized. Check server logs for initialization errors.";
-      logger.error(errorMsg);
-      throw new Error(errorMsg);
+      // Validate recipient email
+      if (!to || typeof to !== "string" || !to.includes("@")) {
+        throw new Error(`Invalid recipient email: ${to}`);
+      }
+
+      // Prepare SendGrid message format
+      const msg = {
+        to: to,
+        from: {
+          email: process.env.SMTP_USER,
+          name: "HerHaven Platform",
+        },
+        subject: subject,
+        html: htmlContent,
+        text: textContent || this.stripHtml(htmlContent),
+      };
+
+      // Log attempt
+      logger.info(`Attempting to send email via SendGrid to: ${to}`);
+      logger.info(`Subject: ${subject}`);
+
+      // Send email using SendGrid
+      const result = await sgMail.send(msg);
+
+      // Log success
+      logger.info(`Email sent successfully to ${to}`);
+      logger.info(`SendGrid Response Status: ${result[0].statusCode}`);
+
+      return {
+        success: true,
+        messageId: result[0].headers["x-message-id"],
+        message: "Email sent successfully",
+      };
+    } catch (error) {
+      logger.error(`Failed to send email to ${to}`);
+      logger.error(`Error message: ${error.message}`);
+
+      // Handle SendGrid specific errors
+      if (error.response) {
+        logger.error(`SendGrid Error Code: ${error.code}`);
+        logger.error(
+          `SendGrid Error Body: ${JSON.stringify(error.response.body)}`
+        );
+      }
+
+      // User-friendly error messages
+      let userFriendlyMessage = "Failed to send email";
+      if (error.code === 401 || error.code === 403) {
+        userFriendlyMessage =
+          "Email service authentication failed. Please contact support.";
+        logger.error("Check your SENDGRID_API_KEY in environment variables");
+      } else if (error.code === 400) {
+        userFriendlyMessage =
+          "Invalid email configuration. Please contact support.";
+        logger.error("Check if sender email is verified in SendGrid");
+      }
+
+      return {
+        success: false,
+        error: error.message,
+        errorCode: error.code,
+        message: userFriendlyMessage,
+      };
     }
-
-    // CHANGE 11: Added validation for recipient email
-    if (!to || typeof to !== 'string' || !to.includes('@')) {
-      throw new Error(`Invalid recipient email: ${to}`);
-    }
-
-    const mailOptions = {
-      from: `"HerHaven Platform" <${process.env.SMTP_USER}>`,
-      to: to,
-      subject: subject,
-      html: htmlContent,
-      text: textContent || this.stripHtml(htmlContent),
-    };
-
-    // CHANGE 12: Added more detailed logging before sending
-    logger.info(`Attempting to send email to: ${to}`);
-    logger.info(`Subject: ${subject}`);
-
-    const result = await this.transporter.sendMail(mailOptions);
-    
-    // CHANGE 13: Enhanced success logging
-    logger.info(`✓ Email sent successfully to ${to}`);
-    logger.info(`Message ID: ${result.messageId}`);
-    logger.info(`Response: ${result.response}`);
-
-    return {
-      success: true,
-      messageId: result.messageId,
-      message: "Email sent successfully",
-    };
-  } catch (error) {
-    // CHANGE 14: Enhanced error logging with more details
-    logger.error(`✗ Failed to send email to ${to}`);
-    logger.error(`Error name: ${error.name}`);
-    logger.error(`Error message: ${error.message}`);
-    logger.error(`Error code: ${error.code}`);
-    
-    // CHANGE 15: Added specific error messages based on error type
-    let userFriendlyMessage = "Failed to send email";
-    if (error.code === 'EAUTH') {
-      userFriendlyMessage = "Email authentication failed. Please contact support.";
-    } else if (error.code === 'ETIMEDOUT') {
-      userFriendlyMessage = "Email service timeout. Please try again later.";
-    } else if (error.code === 'ECONNECTION') {
-      userFriendlyMessage = "Could not connect to email service. Please try again later.";
-    }
-
-    return {
-      success: false,
-      error: error.message,
-      errorCode: error.code,
-      message: userFriendlyMessage,
-    };
   }
-}
+
   // send counselor invitation email
 
   async sendCounselorInvitation(counselor, inviteToken) {
-    const registrationLink = `${process.env.CLIENT_URL || "http://localhost:5000"
-      }/counselor/complete-registration/${inviteToken}`;
+    const registrationLink = `${
+      process.env.CLIENT_URL || "http://localhost:5000"
+    }/counselor/complete-registration/${inviteToken}`;
     const subject = "🎉 You're Invited to Join HerHaven as a Counselor";
 
     const htmlContent = `
@@ -254,8 +212,9 @@ async sendEmail(to, subject, htmlContent, textContent = null) {
       <body>
         <div class="container">    
           <div class="content">
-            <p>Dear <strong>${counselor.firstName} ${counselor.lastName
-      }</strong>,</p>
+            <p>Dear <strong>${counselor.firstName} ${
+      counselor.lastName
+    }</strong>,</p>
             
             <p>Thank you for your interest in joining the HerHaven counseling platform. We have successfully received your counselor application.</p>
             
@@ -266,12 +225,15 @@ async sendEmail(to, subject, htmlContent, textContent = null) {
               <ul>
                 <li><strong>Email:</strong> ${counselor.email}</li>
                 <li><strong>Username:</strong> ${counselor.username}</li>
-                <li><strong>Specialization:</strong> ${counselor.specialization
-      }</li>
-                <li><strong>Experience:</strong> ${counselor.experience
-      } years</li>
-                <li><strong>License Number:</strong> ${counselor.licenseNumber
-      }</li>
+                <li><strong>Specialization:</strong> ${
+                  counselor.specialization
+                }</li>
+                <li><strong>Experience:</strong> ${
+                  counselor.experience
+                } years</li>
+                <li><strong>License Number:</strong> ${
+                  counselor.licenseNumber
+                }</li>
                 <li><strong>Application ID:</strong> ${counselor._id}</li>
               </ul>
             </div>
@@ -331,27 +293,32 @@ async sendEmail(to, subject, htmlContent, textContent = null) {
             <div class="counselor-info">
               <h3>Counselor Information:</h3>
               <ul>
-                <li><strong>Name:</strong> ${counselor.firstName} ${counselor.lastName
-      }</li>
+                <li><strong>Name:</strong> ${counselor.firstName} ${
+      counselor.lastName
+    }</li>
                 <li><strong>Email:</strong> ${counselor.email}</li>
                 <li><strong>Username:</strong> ${counselor.username}</li>
                 <li><strong>Phone:</strong> ${counselor.phoneNumber}</li>
-                <li><strong>Specialization:</strong> ${counselor.specialization
-      }</li>
-                <li><strong>Experience:</strong> ${counselor.experience
-      } years</li>
-                <li><strong>License Number:</strong> ${counselor.licenseNumber
-      }</li>
+                <li><strong>Specialization:</strong> ${
+                  counselor.specialization
+                }</li>
+                <li><strong>Experience:</strong> ${
+                  counselor.experience
+                } years</li>
+                <li><strong>License Number:</strong> ${
+                  counselor.licenseNumber
+                }</li>
                 <li><strong>Application ID:</strong> ${counselor._id}</li>
                 <li><strong>Applied:</strong> ${new Date(
-        counselor.createdAt
-      ).toLocaleString()}</li>
+                  counselor.createdAt
+                ).toLocaleString()}</li>
               </ul>
               
-              ${counselor.bio
-        ? `<p><strong>Bio:</strong><br>${counselor.bio}</p>`
-        : ""
-      }
+              ${
+                counselor.bio
+                  ? `<p><strong>Bio:</strong><br>${counselor.bio}</p>`
+                  : ""
+              }
             </div>
             
             <div class="info-box">
@@ -360,8 +327,9 @@ async sendEmail(to, subject, htmlContent, textContent = null) {
             </div>
             
             <p><strong>Quick Access:</strong></p>
-            <a href="${process.env.CLIENT_URL || "http://localhost:5000"
-      }/api/auth/login" class="btn">
+            <a href="${
+              process.env.CLIENT_URL || "http://localhost:5000"
+            }/api/auth/login" class="btn">
               Login to Admin Dashboard
             </a>
             
@@ -414,8 +382,9 @@ async sendEmail(to, subject, htmlContent, textContent = null) {
       <body>
         <div class="container">
           <div class="content">
-            <p>Dear <strong>${counselor.firstName} ${counselor.lastName
-      }</strong>,</p>
+            <p>Dear <strong>${counselor.firstName} ${
+      counselor.lastName
+    }</strong>,</p>
             
             <p>We're thrilled to inform you that your counselor application has been <strong>APPROVED</strong> by our team!</p>
             
@@ -432,8 +401,9 @@ async sendEmail(to, subject, htmlContent, textContent = null) {
             
             <p><strong>Access Your Dashboard:</strong></p>
 
-            <a href="${process.env.CLIENT_URL || "http://localhost:5000"
-      }/api/auth/login" class="btn">
+            <a href="${
+              process.env.CLIENT_URL || "http://localhost:5000"
+            }/api/auth/login" class="btn">
               Login to access your dashboard
             </a>
             
@@ -488,8 +458,9 @@ async sendEmail(to, subject, htmlContent, textContent = null) {
         <div class="container">
           
           <div class="content">
-            <p>Dear <strong>${counselor.firstName} ${counselor.lastName
-      }</strong>,</p>
+            <p>Dear <strong>${counselor.firstName} ${
+      counselor.lastName
+    }</strong>,</p>
             
             <p>Thank you for your interest in joining the HerHaven counseling platform. After careful review of your application, we regret to inform you that it was not approved at this time.</p>
             <p>We prioritized several factors during our review process, including qualifications, experience, and alignment with our platform's mission. Unfortunately, we found that your application did not fully meet our current requirements.</p>
@@ -498,11 +469,13 @@ async sendEmail(to, subject, htmlContent, textContent = null) {
             
             <div class="info-box">
               <h4>Feedback:</h4>
-              <p><strong>Reason:</strong> ${rejectionReason ||
-      "Application does not meet current platform requirements."
-      }</p>
-              <p><strong>Reviewed by:</strong> ${rejectedByAdmin?.firstName || "Admin"
-      } ${rejectedByAdmin?.lastName || ""}</p>
+              <p><strong>Reason:</strong> ${
+                rejectionReason ||
+                "Application does not meet current platform requirements."
+              }</p>
+              <p><strong>Reviewed by:</strong> ${
+                rejectedByAdmin?.firstName || "Admin"
+              } ${rejectedByAdmin?.lastName || ""}</p>
               <p><strong>Review Date:</strong> ${new Date().toLocaleDateString()}</p>
             </div>
             
@@ -555,11 +528,12 @@ async sendEmail(to, subject, htmlContent, textContent = null) {
           
           <div class="info-box">
             <h3>Appointment Details:</h3>
-            <p><strong>Client Name:</strong> ${user.firstName} ${user.lastName
-      }</p>
+            <p><strong>Client Name:</strong> ${user.firstName} ${
+      user.lastName
+    }</p>
             <p><strong>Date:</strong> ${new Date(
-        appointment.appointmentDate
-      ).toLocaleDateString()}</p>
+              appointment.appointmentDate
+            ).toLocaleDateString()}</p>
             <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
             <p><strong>Status:</strong> ${appointment.status}</p>
           </div>
@@ -613,8 +587,8 @@ async sendEmail(to, subject, htmlContent, textContent = null) {
             <p><strong>Counselor:</strong> Dr. ${counselor.lastName}</p>
             <p><strong>Specialization:</strong> ${counselor.specialization}</p>
             <p><strong>Date:</strong> ${new Date(
-      appointment.appointmentDate
-    ).toLocaleDateString()}</p>
+              appointment.appointmentDate
+            ).toLocaleDateString()}</p>
             <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
             <p><strong>Status:</strong> Confirmed</p>
           </div>
@@ -673,8 +647,8 @@ async sendEmail(to, subject, htmlContent, textContent = null) {
             <h3>Appointment Details:</h3>
             <p><strong>Counselor:</strong> Dr. ${counselor.lastName}</p>
             <p><strong>Date:</strong> ${new Date(
-      appointment.appointmentDate
-    ).toLocaleDateString()}</p>
+              appointment.appointmentDate
+            ).toLocaleDateString()}</p>
             <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
             <p><strong>Starts in:</strong> ${timeText}</p>
           </div>
@@ -733,21 +707,22 @@ async sendEmail(to, subject, htmlContent, textContent = null) {
             <h3>Session Details:</h3>
             <p><strong>Counselor:</strong> Dr. ${counselor.lastName}</p>
             <p><strong>Date:</strong> ${new Date(
-      appointment.appointmentDate
-    ).toLocaleDateString()}</p>
+              appointment.appointmentDate
+            ).toLocaleDateString()}</p>
             <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
             <p><strong>Status:</strong> Starting soon</p>
           </div>
           
-          ${meetingLink
-        ? `
+          ${
+            meetingLink
+              ? `
           <p><strong>Join your session:</strong></p>
           <a href="${meetingLink}" class="btn">Join Session Now</a>
           `
-        : `
+              : `
           <p>Please proceed to your session area in the app.</p>
           `
-      }
+          }
           
           <p>We hope you have a productive session!</p>
           

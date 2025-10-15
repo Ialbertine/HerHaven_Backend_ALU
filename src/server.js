@@ -73,7 +73,7 @@ const limiter = rateLimit({
   },
 });
 app.use((req, res, next) => {
-   if (req.path === "/api/health" || req.path === "/api/email-health") {
+  if (req.path === "/api/health") {
     return next();
   }
   limiter(req, res, next);
@@ -109,109 +109,6 @@ app.get("/api/health", (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
   });
-});
-
-// Simple email health check endpoint
-app.get("/api/email-health", async (req, res) => {
-  try {
-    const emailService = require("./services/emailService");
-    
-    if (!emailService.transporter) {
-      return res.status(503).json({ 
-        success: false,
-        message: 'Email service not initialized' 
-      });
-    }
-
-    // Test connection
-    await emailService.transporter.verify();
-    
-    res.json({
-      success: true,
-      message: 'Email service is working correctly',
-      config: {
-        host: process.env.SMTP_HOST,
-        user: process.env.SMTP_USER,
-      }
-    });
-    
-  } catch (error) {
-    logger.error('Email health check failed:', error);
-    res.status(503).json({
-      success: false,
-      message: 'Email service test failed',
-      error: error.message
-    });
-  }
-});
-
-app.post("/api/test-email", async (req, res) => {
-  try {
-    const { toEmail } = req.body;
-    
-    // CHANGE 2: Validate email input
-    if (!toEmail) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide toEmail in request body'
-      });
-    }
-
-    const emailService = require("./services/emailService");
-    
-    // CHANGE 3: Check if email service is initialized
-    if (!emailService.transporter) {
-      logger.error('Email transporter not initialized');
-      return res.status(503).json({ 
-        success: false,
-        message: 'Email service not initialized',
-        details: 'Check server logs for initialization errors'
-      });
-    }
-
-    // CHANGE 4: Log the attempt
-    logger.info(`Testing email send to: ${toEmail}`);
-
-    // CHANGE 5: Send a simple test email
-    const result = await emailService.sendEmail(
-      toEmail,
-      "Test Email from HerHaven",
-      `
-        <h2>Test Email</h2>
-        <p>This is a test email from your HerHaven API deployed on Render.</p>
-        <p>If you received this, your email service is working correctly!</p>
-        <p>Timestamp: ${new Date().toISOString()}</p>
-      `,
-      "This is a test email from HerHaven API"
-    );
-
-    // CHANGE 6: Return detailed result
-    if (result.success) {
-      logger.info('Test email sent successfully');
-      res.json({
-        success: true,
-        message: 'Test email sent successfully!',
-        messageId: result.messageId,
-        sentTo: toEmail
-      });
-    } else {
-      logger.error('Test email failed:', result.error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to send test email',
-        error: result.error,
-        errorCode: result.errorCode
-      });
-    }
-    
-  } catch (error) {
-    logger.error('Test email endpoint error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Test email failed',
-      error: error.message
-    });
-  }
 });
 
 // 404 handler
