@@ -114,7 +114,7 @@ class EmailService {
 
   async sendCounselorInvitation(counselor, inviteToken) {
     const registrationLink = `${
-      process.env.CLIENT_URL || "http://localhost:5000"
+      process.env.CLIENT_URL || "http://localhost:5723"
     }/counselor/complete-registration/${inviteToken}`;
     const subject = "🎉 You're Invited to Join HerHaven as a Counselor";
 
@@ -190,7 +190,7 @@ class EmailService {
 
   // send counselor registration confirmation email
   async sendCounselorRegistrationConfirmation(counselor) {
-    const subject = "HerHaven - Counselor Application Submitted Successfully";
+    const subject = "Counselor Application Submitted Successfully";
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -198,7 +198,6 @@ class EmailService {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Application Submitted</title>
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
           .container { max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 8px; }
@@ -261,7 +260,7 @@ class EmailService {
   }
 
   async sendAdminNewApplicationAlert(counselor, adminEmail) {
-    const subject = "New Counselor Application - HerHaven Platform";
+    const subject = "New Counselor Application";
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -278,7 +277,7 @@ class EmailService {
           .info-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; }
           .counselor-info { background: #f8f9fa; border: 1px solid #844ae2ff; padding: 15px; margin: 15px 0; border-radius: 5px; }
           .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
-          .btn { display: inline-block; background: #844ae2ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 10px 0; }
+          .btn { display: inline-block; background: #632db9ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 10px 0; }
         </style>
       </head>
       <body>
@@ -328,8 +327,8 @@ class EmailService {
             
             <p><strong>Quick Access:</strong></p>
             <a href="${
-              process.env.CLIENT_URL || "http://localhost:5000"
-            }/api/auth/login" class="btn">
+              process.env.CLIENT_URL || "http://localhost:5723"
+            }/login" class="btn">
               Login to Admin Dashboard
             </a>
             
@@ -402,8 +401,8 @@ class EmailService {
             <p><strong>Access Your Dashboard:</strong></p>
 
             <a href="${
-              process.env.CLIENT_URL || "http://localhost:5000"
-            }/api/auth/login" class="btn">
+              process.env.CLIENT_URL || "http://localhost:5723"
+            }/login" class="btn">
               Login to access your dashboard
             </a>
             
