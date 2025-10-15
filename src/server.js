@@ -11,7 +11,6 @@ const logger = require("./utils/logger");
 
 // Route imports
 const authRoutes = require("./routes/authRoutes");
-const safetyRoutes = require("./routes/safetyRoutes");
 const counselorRoutes = require("./routes/counselorRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const appointmentRoutes = require("./routes/appointmentRoutes");
@@ -99,7 +98,6 @@ app.use(
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/safety", safetyRoutes);
 app.use("/api/counselor", counselorRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/appointments", appointmentRoutes);
