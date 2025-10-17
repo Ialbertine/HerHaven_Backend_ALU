@@ -256,7 +256,7 @@ const appointmentController = {
       appointment.confirmedAt = new Date();
 
       // confirmation to remindersSent
-      appointment.remindersSent.push('confirmation');
+      appointment.remindersSent.push("confirmation");
 
       await appointment.save();
 
@@ -444,59 +444,206 @@ const appointmentController = {
     }
   },
 
- // Get available time slots for a counselor
-getAvailableTimeSlots: async (req, res) => {
-  try {
-    const { counselorId } = req.params;
-    const { date, duration } = req.query;
+  // Get available time slots for counselor
+  getAvailableTimeSlots: async (req, res) => {
+    try {
+      const { counselorId } = req.params;
+      const { date, duration } = req.query;
 
-    if (!date) {
-      return res.status(400).json({
-        success: false,
-        message: "Date parameter is required",
+      if (!date) {
+        return res.status(400).json({
+          success: false,
+          message: "Date parameter is required",
+        });
+      }
+
+      // Parse and validate duration
+      const sessionDuration = duration ? parseInt(duration) : 60;
+
+      if (sessionDuration < 30 || sessionDuration > 180) {
+        return res.status(400).json({
+          success: false,
+          message: "Duration must be between 30 and 180 minutes",
+        });
+      }
+
+      // Validate counselor exists and get their availability
+      const counselor = await Counselor.findOne({
+        _id: counselorId,
+        isVerified: true,
+        isActive: true,
+        isAvailable: true,
+      }).select(
+        "firstName lastName username specialization availability schedule"
+      );
+
+      if (!counselor) {
+        return res.status(404).json({
+          success: false,
+          message: "Counselor not found or not available",
+        });
+      }
+
+      // Get the day of week from the requested date
+      const requestedDate = new Date(date);
+      const dayOfWeek = requestedDate.toLocaleDateString("en-US", {
+        weekday: "long",
       });
-    }
 
-    // Parse and validate duration
-    const sessionDuration = duration ? parseInt(duration) : 60;
-    
-    if (sessionDuration < 30 || sessionDuration > 180) {
-      return res.status(400).json({
-        success: false,
-        message: "Duration must be between 30 and 180 minutes",
+      logger.info(
+        `Checking availability for ${counselor.firstName} on ${dayOfWeek} (${date}) for ${sessionDuration} min session`
+      );
+
+      let availabilitySlots = [];
+
+      if (counselor.availability && Array.isArray(counselor.availability)) {
+        logger.info(
+          `Using 'availability' structure with ${counselor.availability.length} days configured`
+        );
+
+        const dayAvailability = counselor.availability.find(
+          (a) => a.day === dayOfWeek
+        );
+
+        if (
+          dayAvailability &&
+          dayAvailability.slots &&
+          dayAvailability.slots.length > 0
+        ) {
+          availabilitySlots = dayAvailability.slots;
+          logger.info(
+            `Found ${availabilitySlots.length} time slots for ${dayOfWeek}:`,
+            availabilitySlots
+          );
+        } else {
+          logger.info(`No slots found for ${dayOfWeek} in availability array`);
+        }
+      }
+
+      else if (counselor.schedule && Array.isArray(counselor.schedule)) {
+        logger.info(
+          `Using 'schedule' structure with ${counselor.schedule.length} days configured`
+        );
+
+        const daySchedule = counselor.schedule.find(
+          (s) => s.dayOfWeek === dayOfWeek
+        );
+
+        if (daySchedule && daySchedule.isAvailable) {
+          availabilitySlots = [
+            {
+              startTime: daySchedule.startTime,
+              endTime: daySchedule.endTime,
+            },
+          ];
+          logger.info(`Found schedule for ${dayOfWeek}:`, availabilitySlots);
+        } else {
+          logger.info(
+            `No schedule found for ${dayOfWeek} or counselor not available`
+          );
+        }
+      } else {
+        logger.warn(
+          `Counselor has neither 'availability' nor 'schedule' configured`
+        );
+      }
+
+      // If no availability found for this day
+      if (availabilitySlots.length === 0) {
+        logger.info(`No availability configured for ${dayOfWeek}`);
+        return res.json({
+          success: true,
+          message: `Counselor is not available on ${dayOfWeek}`,
+          data: {
+            counselor: {
+              id: counselor._id,
+              name: `${counselor.firstName} ${counselor.lastName}`,
+              username: counselor.username,
+              specialization: counselor.specialization,
+            },
+            date,
+            dayOfWeek,
+            availableSlots: [],
+            totalSlots: 0,
+          },
+        });
+      }
+
+      // Get booked appointments for the date
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const bookedAppointments = await Appointment.find({
+        counselor: counselorId,
+        appointmentDate: {
+          $gte: startOfDay,
+          $lte: endOfDay,
+        },
+        status: { $in: ["confirmed", "pending"] },
+      }).select("appointmentTime duration");
+
+      logger.info(
+        `Found ${bookedAppointments.length} booked appointments for ${date}`
+      );
+
+      // Generate time slots from all availability slots
+      let allGeneratedSlots = [];
+
+      for (const slot of availabilitySlots) {
+        const slotsForThisRange = generateTimeSlotsFromSchedule(
+          slot.startTime,
+          slot.endTime,
+          sessionDuration
+        );
+        allGeneratedSlots = [...allGeneratedSlots, ...slotsForThisRange];
+      }
+
+      logger.info(
+        `Generated ${allGeneratedSlots.length} time slots with ${sessionDuration} min duration`
+      );
+
+      // Filter out slots that conflict with booked appointments
+      const filteredSlots = allGeneratedSlots.filter((slot) => {
+        const slotStartMinutes = timeToMinutes(slot.time);
+        const slotEndMinutes = slotStartMinutes + sessionDuration;
+
+        // Check if this slot conflicts with any booked appointment
+        const hasConflict = bookedAppointments.some((apt) => {
+          const aptStartMinutes = timeToMinutes(apt.appointmentTime);
+          const aptEndMinutes = aptStartMinutes + apt.duration;
+
+          return (
+            slotStartMinutes < aptEndMinutes && slotEndMinutes > aptStartMinutes
+          );
+        });
+
+        return !hasConflict;
       });
-    }
 
-    // Validate counselor exists and get their schedule
-    const counselor = await Counselor.findOne({
-      _id: counselorId,
-      isVerified: true,
-      isActive: true,
-      isAvailable: true,
-    }).select('firstName lastName username specialization schedule');
+      logger.info(
+        `${filteredSlots.length} slots available after removing conflicts`
+      );
 
-    if (!counselor) {
-      return res.status(404).json({
-        success: false,
-        message: "Counselor not found or not available",
+      // Filter out past times if the date is today
+      const now = new Date();
+      const isToday = requestedDate.toDateString() === now.toDateString();
+      const currentTime = isToday ? now.toTimeString().slice(0, 5) : null;
+
+      const finalSlots = filteredSlots.filter((slot) => {
+        const isPast = isToday && slot.time <= currentTime;
+        return !isPast;
       });
-    }
 
-    // Get the day of week from the requested date
-    const requestedDate = new Date(date);
-    const dayOfWeek = requestedDate.toLocaleDateString('en-US', { weekday: 'long' });
-    
-    logger.info(`Checking availability for ${counselor.firstName} on ${dayOfWeek} (${date}) for ${sessionDuration} min session`);
-    logger.info(`Counselor schedule:`, counselor.schedule);
+      logger.info(
+        `${finalSlots.length} slots available after filtering past times`
+      );
 
-    // Find the schedule for this specific day
-    const daySchedule = counselor.schedule?.find(s => s.dayOfWeek === dayOfWeek);
-    
-    if (!daySchedule || !daySchedule.isAvailable) {
-      logger.info(`No schedule found for ${dayOfWeek} or counselor not available`);
-      return res.json({
+      res.json({
         success: true,
-        message: `Counselor is not available on ${dayOfWeek}`,
+        message: "Available time slots retrieved",
         data: {
           counselor: {
             id: counselor._id,
@@ -505,93 +652,21 @@ getAvailableTimeSlots: async (req, res) => {
             specialization: counselor.specialization,
           },
           date,
-          availableSlots: [],
-          totalSlots: 0,
+          dayOfWeek,
+          duration: sessionDuration,
+          availableSlots: finalSlots,
+          totalSlots: finalSlots.length,
         },
+      });
+    } catch (error) {
+      logger.error("Get available time slots error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to retrieve available time slots",
+        error: error.message,
       });
     }
-
-    // Get booked time slots for the date
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const bookedAppointments = await Appointment.find({
-      counselor: counselorId,
-      appointmentDate: {
-        $gte: startOfDay,
-        $lte: endOfDay,
-      },
-      status: { $in: ["confirmed", "pending"] },
-    }).select("appointmentTime duration");
-
-    logger.info(`Found ${bookedAppointments.length} booked appointments for this date`);
-
-    // Generate time slots based on counselor's schedule
-    const availableSlots = generateTimeSlotsFromSchedule(
-      daySchedule.startTime,
-      daySchedule.endTime,
-      sessionDuration
-    );
-
-    logger.info(`Generated ${availableSlots.length} slots from ${daySchedule.startTime} to ${daySchedule.endTime} with ${sessionDuration} min duration`);
-
-    // Filter out slots that conflict with booked appointments
-    const filteredSlots = availableSlots.filter(slot => {
-      const slotStartMinutes = timeToMinutes(slot.time);
-      const slotEndMinutes = slotStartMinutes + sessionDuration;
-      
-      // Check if this slot conflicts with any booked appointment
-      const hasConflict = bookedAppointments.some(apt => {
-        const aptStartMinutes = timeToMinutes(apt.appointmentTime);
-        const aptEndMinutes = aptStartMinutes + apt.duration;
-        
-        return slotStartMinutes < aptEndMinutes && slotEndMinutes > aptStartMinutes;
-      });
-      
-      return !hasConflict;
-    });
-
-    // Filter out past times if the date is today
-    const now = new Date();
-    const isToday = requestedDate.toDateString() === now.toDateString();
-    const currentTime = isToday ? now.toTimeString().slice(0, 5) : null; 
-
-    const finalSlots = filteredSlots.filter(slot => {
-      const isPast = isToday && slot.time <= currentTime;
-      return !isPast;
-    });
-
-    logger.info(`${finalSlots.length} slots available after filtering`);
-
-    res.json({
-      success: true,
-      message: "Available time slots retrieved",
-      data: {
-        counselor: {
-          id: counselor._id,
-          name: `${counselor.firstName} ${counselor.lastName}`,
-          username: counselor.username,
-          specialization: counselor.specialization,
-        },
-        date,
-        dayOfWeek,
-        duration: sessionDuration,
-        availableSlots: finalSlots,
-        totalSlots: finalSlots.length,
-      },
-    });
-  } catch (error) {
-    logger.error("Get available time slots error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to retrieve available time slots",
-      error: error.message,
-    });
-  }
-},
+  },
 
   // Get meeting details for appointment
   getMeetingDetails: async (req, res) => {
@@ -602,7 +677,7 @@ getAvailableTimeSlots: async (req, res) => {
       const appointment = await Appointment.findOne({
         _id: appointmentId,
         user: userId,
-        status: { $in: ["confirmed", "in-progress"] }, 
+        status: { $in: ["confirmed", "in-progress"] },
       }).populate("counselor", "firstName lastName specialization");
 
       if (!appointment) {
@@ -818,34 +893,36 @@ getAvailableTimeSlots: async (req, res) => {
 // Helper function to generate time slots from schedule
 function generateTimeSlotsFromSchedule(startTime, endTime, durationMinutes) {
   const slots = [];
-  
-  const [startHour, startMinute] = startTime.split(':').map(Number);
-  const [endHour, endMinute] = endTime.split(':').map(Number);
-  
+
+  const [startHour, startMinute] = startTime.split(":").map(Number);
+  const [endHour, endMinute] = endTime.split(":").map(Number);
+
   let currentMinutes = startHour * 60 + startMinute;
   const endMinutes = endHour * 60 + endMinute;
-  
+
   // Only generate slots that can fit within the schedule
   while (currentMinutes + durationMinutes <= endMinutes) {
     const hours = Math.floor(currentMinutes / 60);
     const minutes = currentMinutes % 60;
-    const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-    
+    const timeString = `${String(hours).padStart(2, "0")}:${String(
+      minutes
+    ).padStart(2, "0")}`;
+
     slots.push({
       time: timeString,
       duration: durationMinutes,
-      available: true
+      available: true,
     });
-    
+
     currentMinutes += durationMinutes;
   }
-  
+
   return slots;
 }
 
 // Helper function to convert time string to minutes
 function timeToMinutes(timeString) {
-  const [hours, minutes] = timeString.split(':').map(Number);
+  const [hours, minutes] = timeString.split(":").map(Number);
   return hours * 60 + minutes;
 }
 
