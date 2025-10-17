@@ -300,6 +300,7 @@ const appointmentController = {
       res.status(500).json({
         success: false,
         message: "Failed to confirm appointment",
+        error: error.message,
       });
     }
   },
