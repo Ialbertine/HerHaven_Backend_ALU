@@ -255,12 +255,6 @@ const appointmentController = {
       appointment.status = "confirmed";
       appointment.confirmedAt = new Date();
 
-      // confirmation to remindersSent
-      appointment.remindersSent.push({
-        type: "confirmation",
-        sentAt: new Date(),
-      });
-
       await appointment.save();
 
       // Create notification for user
@@ -522,7 +516,9 @@ const appointmentController = {
         } else {
           logger.info(`No slots found for ${dayOfWeek} in availability array`);
         }
-      } else if (counselor.schedule && Array.isArray(counselor.schedule)) {
+      }
+
+      else if (counselor.schedule && Array.isArray(counselor.schedule)) {
         logger.info(
           `Using 'schedule' structure with ${counselor.schedule.length} days configured`
         );
