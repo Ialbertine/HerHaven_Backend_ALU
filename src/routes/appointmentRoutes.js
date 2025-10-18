@@ -28,4 +28,6 @@ router.put('/:appointmentId/cancel', auth, requireUser, appointmentController.ca
 router.put('/:appointmentId/start', auth, requireCounselor, appointmentController.startSession);
 router.put('/:appointmentId/end', auth, requireCounselor, appointmentController.endSession);
 
+router.delete('/:appointmentId', auth, requireAnyRole, appointmentController.deleteAppointment);
+
 module.exports = router;

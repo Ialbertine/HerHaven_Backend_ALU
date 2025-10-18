@@ -826,6 +826,7 @@ const appointmentController = {
       res.status(500).json({
         success: false,
         message: "Failed to start session",
+        error: error.message,
       });
     }
   },
@@ -889,7 +890,58 @@ const appointmentController = {
       res.status(500).json({
         success: false,
         message: "Failed to end session",
+        error: error.message,
       });
+    }
+  },
+
+  // Delete appointment (user or counselor)
+  deleteAppointment: async (req, res) => {
+    try {
+      const { appointmentId } = req.params;
+      const requesterId = req.user._id;
+
+      if (!mongoose.Types.ObjectId.isValid(appointmentId)) {
+        return res.status(400).json({ success: false, message: 'Invalid appointment ID' });
+      }
+
+      const appointment = await Appointment.findById(appointmentId).populate('counselor user', '_id firstName lastName username email');
+
+      if (!appointment) {
+        return res.status(404).json({ success: false, message: 'Appointment not found' });
+      }
+
+      const isOwner = appointment.user && appointment.user._id.toString() === requesterId.toString();
+      const isCounselor = appointment.counselor && appointment.counselor._id.toString() === requesterId.toString();
+
+      if (!isOwner && !isCounselor) {
+        return res.status(403).json({ success: false, message: 'Not authorized to delete this appointment' });
+      }
+
+      const appointmentDateTime = new Date(appointment.appointmentDate);
+      if (appointment.appointmentTime) {
+        const [hh, mm] = (appointment.appointmentTime || '00:00').split(':').map(Number);
+        appointmentDateTime.setHours(hh, mm, 0, 0);
+      }
+
+      const now = new Date();
+
+      if (appointmentDateTime > now && ['pending', 'confirmed', 'in-progress'].includes(appointment.status)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            'Cannot delete an upcoming or in-progress appointment. Please cancel it instead (users) or reject/cancel (counselors).',
+        });
+      }
+
+      await appointment.deleteOne();
+
+      logger.info(`Appointment deleted: ${appointmentId} by ${req.user.username || requesterId}`);
+
+      return res.json({ success: true, message: 'Appointment deleted successfully' });
+    } catch (error) {
+      logger.error('Delete appointment error:', error);
+      return res.status(500).json({ success: false, message: 'Failed to delete appointment', error: error.message });
     }
   },
 };
