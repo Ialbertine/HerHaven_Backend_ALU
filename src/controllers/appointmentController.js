@@ -12,6 +12,9 @@ const appointmentController = {
     try {
       const {
         counselorId,
+        firstName,
+        lastName,
+        phoneNumber,
         appointmentDate,
         appointmentTime,
         duration = 60,
@@ -72,6 +75,9 @@ const appointmentController = {
       const appointment = new Appointment({
         user: userId,
         counselor: counselorId,
+        firstName,
+        lastName,
+        phoneNumber,
         appointmentDate: new Date(appointmentDate),
         appointmentTime,
         duration,
@@ -108,7 +114,7 @@ const appointmentController = {
         counselor._id,
         "appointment_booked",
         "New Appointment Request",
-        `You have a new appointment request from ${req.user.username}.`,
+        `You have a new appointment request from ${firstName} ${lastName}.`,
         {
           appointment: appointment._id,
           user: userId,
@@ -127,6 +133,9 @@ const appointmentController = {
         data: {
           appointment: {
             id: appointment._id,
+            firstName: appointment.firstName,
+            lastName: appointment.lastName,
+            phoneNumber: appointment.phoneNumber,
             counselor: {
               id: appointment.counselor._id,
               name: `${appointment.counselor.firstName} ${appointment.counselor.lastName}`,
@@ -249,8 +258,6 @@ const appointmentController = {
           message: "Appointment not found or already processed",
         });
       }
-
-      // Meeting details removed - no external video platform integration
 
       appointment.status = "confirmed";
       appointment.confirmedAt = new Date();
@@ -744,8 +751,7 @@ const appointmentController = {
 
       const appointmentDateTime = moment
         .tz(
-          `${appointment.appointmentDate.toISOString().split("T")[0]} ${
-            appointment.appointmentTime
+          `${appointment.appointmentDate.toISOString().split("T")[0]} ${appointment.appointmentTime
           }`,
           "YYYY-MM-DD HH:mm",
           "Africa/Harare"

@@ -15,6 +15,33 @@ const appointmentSchema = new mongoose.Schema({
     required: true
   },
 
+  // User contact information at time of booking
+  firstName: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 50
+  },
+
+  lastName: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 50
+  },
+
+  phoneNumber: {
+    type: String,
+    required: true,
+    trim: true,
+    validate: {
+      validator: function (v) {
+        return /^[\d\s\-+()]+$/.test(v);
+      },
+      message: 'Please provide a valid phone number'
+    }
+  },
+
   // Appointment details
   appointmentDate: {
     type: Date,
@@ -36,7 +63,7 @@ const appointmentSchema = new mongoose.Schema({
   duration: {
     type: Number,
     required: true,
-    default: 60, 
+    default: 60,
     min: 30,
     max: 180
   },
@@ -58,7 +85,7 @@ const appointmentSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['pending', 'confirmed', 'in-progress', 'completed', 'cancelled', 'no-show'],
-    default: 'pending' 
+    default: 'pending'
   },
 
   reason: {
