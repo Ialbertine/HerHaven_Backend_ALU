@@ -61,7 +61,8 @@ app.use(
       "Authorization", 
       "X-Requested-With",
       "Accept",
-      "Origin"
+      "Origin",
+      "X-Guest-Session-Id"
     ],
     exposedHeaders: ["Content-Range", "X-Content-Range"],
     maxAge: 600,
