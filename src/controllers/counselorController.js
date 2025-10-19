@@ -314,7 +314,7 @@ const counselorController = {
       }
 
       const counselors = await Counselor.find(filter)
-        .select('username firstName lastName specialization experience bio averageRating isAvailable')
+        .select('username firstName lastName specialization experience bio averageRating profilePicture isAvailable')
         .sort({ averageRating: -1, experience: -1 });
 
       res.json({
@@ -345,7 +345,7 @@ const counselorController = {
         _id: counselorId,
         isVerified: true,
         isActive: true
-      }).select('username firstName lastName specialization experience bio averageRating isAvailable totalSessions');
+      }).select('username firstName lastName specialization experience bio averageRating isAvailable totalSessions profilePicture');
 
       if (!counselor) {
         return res.status(404).json({
