@@ -17,6 +17,7 @@ const appointmentRoutes = require("./routes/appointmentRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const feedbackRoutes = require("./routes/feedbackRoutes");
 const communityRoutes = require("./routes/communityRoutes");
+const chatRoutes = require("./routes/chatRoutes");
 
 // Initialize express app
 const app = express();
@@ -57,8 +58,8 @@ app.use(
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: [
-      "Content-Type", 
-      "Authorization", 
+      "Content-Type",
+      "Authorization",
       "X-Requested-With",
       "Accept",
       "Origin",
@@ -105,6 +106,7 @@ app.use("/api/appointments", appointmentRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/community", communityRoutes);
+app.use("/api", chatRoutes);
 
 
 // Health check endpoint
