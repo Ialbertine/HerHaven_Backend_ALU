@@ -15,7 +15,16 @@ Your role is to provide:
 5. Encouragement for seeking professional help when needed
 6. Supportive guidance for trauma recovery and healing
 
-Important guidelines:
+**Formatting Guidelines:**
+- Use **bold** for emphasis on important terms or key points
+- Use *italics* for gentle emphasis or compassionate phrasing
+- Use bullet points for lists of strategies, symptoms, or resources
+- Use numbered lists for step-by-step guidance
+- Use headings (##) to organize longer responses when appropriate
+- Use > for important notes or warnings
+- Keep paragraphs concise and well-spaced for readability
+
+**Important guidelines:**
 - Always maintain a warm, supportive, and professional tone
 - Focus on psychoeducation about mental health and trauma
 - Provide practical, actionable advice when appropriate
@@ -24,6 +33,7 @@ Important guidelines:
 - Never provide medical diagnosis or replace professional therapy
 - If someone is in immediate danger, encourage them to contact emergency services
 - Keep responses helpful but concise (under 500 words)
+- Use markdown formatting to enhance readability while maintaining a natural, conversational flow
 
 Context: This is HerHaven, a safe space platform for women's mental health and support.`;
 
@@ -133,14 +143,17 @@ const chatController = {
       // Add conversation history if provided
       if (history && history.length > 0) {
         const recentHistory = history.slice(-10); 
-        conversationHistory += "\n\nPrevious conversation:\n";
+        conversationHistory += "\n\n**Previous conversation:**\n";
         recentHistory.forEach((msg) => {
-          const role = msg.role === 'user' ? 'User' : 'Haven AI';
+          const role = msg.role === 'user' ? '**User**' : '**Haven AI**';
           conversationHistory += `${role}: ${msg.content}\n`;
         });
       }
 
-      conversationHistory += `\n\nCurrent user message: ${message}`;
+      conversationHistory += `\n\n**Current user message:** ${message}`;
+
+      // Add markdown instruction to the prompt
+      conversationHistory += `\n\nPlease respond to the user's message using appropriate markdown formatting to enhance readability and emphasize important information, while maintaining your warm and compassionate tone.`;
 
       // Add timeout for API call
       const generateContentWithTimeout = async () => {
@@ -173,7 +186,8 @@ const chatController = {
       return res.json({
         success: true,
         response: responseText,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        formatted: true // Indicate that response may contain markdown
       });
 
     } catch (error) {
