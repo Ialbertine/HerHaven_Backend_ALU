@@ -97,16 +97,16 @@ const chatController = {
       };
 
       const availableModels = [
-        "gemini-2.0-flash-001",        
-        "gemini-2.5-flash",           
-        "gemini-2.0-flash",           
-        "gemini-2.5-pro",             
-        "gemini-pro-latest"           
+        "gemini-2.0-flash-001",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-2.5-pro",
+        "gemini-pro-latest"
       ];
 
       let lastError = null;
       let selectedModel = null;
-      
+
       for (const modelName of availableModels) {
         try {
           logger.info(`Trying model: ${modelName}`);
@@ -114,13 +114,13 @@ const chatController = {
             model: modelName,
             ...modelConfig
           });
-          
+
           const testResult = await model.generateContent("Hello");
           await testResult.response;
-          
+
           selectedModel = modelName;
           logger.info(`Successfully using model: ${modelName}`);
-          break; 
+          break;
         } catch (modelError) {
           lastError = modelError;
           logger.warn(`Model ${modelName} unavailable:`, modelError.message);
@@ -142,7 +142,7 @@ const chatController = {
 
       // Add conversation history if provided
       if (history && history.length > 0) {
-        const recentHistory = history.slice(-10); 
+        const recentHistory = history.slice(-10);
         conversationHistory += "\n\n**Previous conversation:**\n";
         recentHistory.forEach((msg) => {
           const role = msg.role === 'user' ? '**User**' : '**Haven AI**';
@@ -158,18 +158,18 @@ const chatController = {
       // Add timeout for API call
       const generateContentWithTimeout = async () => {
         const timeoutPromise = new Promise((_, reject) => {
-          globalThis.setTimeout(() => reject(new Error('API request timeout')), 30000); 
+          globalThis.setTimeout(() => reject(new Error('API request timeout')), 30000);
         });
 
         const apiPromise = model.generateContent(conversationHistory);
-        
+
         return Promise.race([apiPromise, timeoutPromise]);
       };
 
       // Generate response with timeout
       const result = await generateContentWithTimeout();
       const response = await result.response;
-      
+
       if (!response || !response.text) {
         throw new Error('Invalid response from AI service');
       }
@@ -187,7 +187,7 @@ const chatController = {
         success: true,
         response: responseText,
         timestamp: new Date().toISOString(),
-        formatted: true // Indicate that response may contain markdown
+        formatted: true
       });
 
     } catch (error) {

@@ -18,6 +18,8 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const feedbackRoutes = require("./routes/feedbackRoutes");
 const communityRoutes = require("./routes/communityRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const sosRoutes = require("./routes/sosRoutes");
+const emergencyContactRoutes = require("./routes/emergencyContactRoutes");
 
 // Initialize express app
 const app = express();
@@ -107,7 +109,8 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/community", communityRoutes);
 app.use("/api", chatRoutes);
-
+app.use("/api/sos", sosRoutes); 
+app.use("/api/emergency-contacts", emergencyContactRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
