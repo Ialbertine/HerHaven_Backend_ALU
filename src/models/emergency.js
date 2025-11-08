@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const logger = require("../utils/logger");
 const Schema = mongoose.Schema;
 
 const emergencyContactSchema = new Schema(
@@ -54,5 +55,27 @@ const EmergencyContact = mongoose.model(
   "EmergencyContact",
   emergencyContactSchema
 );
+
+mongoose.connection.on("open", async () => {
+  try {
+    const indexes = await EmergencyContact.collection.indexes();
+    const legacyPhoneIndex = indexes.find(
+      (index) => index.name === "phoneNumber_1" && index.unique
+    );
+
+    if (legacyPhoneIndex) {
+      await EmergencyContact.collection.dropIndex("phoneNumber_1");
+      logger.info(
+        "Dropped legacy unique index on EmergencyContact.phoneNumber to allow multiple contacts per user."
+      );
+    }
+  } catch (error) {
+    if (error.codeName !== "IndexNotFound") {
+      logger.warn(
+        `Could not adjust EmergencyContact phone number index: ${error.message}`
+      );
+    }
+  }
+});
 
 module.exports = EmergencyContact;
