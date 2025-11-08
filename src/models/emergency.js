@@ -56,21 +56,27 @@ const EmergencyContact = mongoose.model(
   emergencyContactSchema
 );
 
-mongoose.connection.on("open", async () => {
+mongoose.connection.once("open", async () => {
   try {
     const indexes = await EmergencyContact.collection.indexes();
-    const legacyPhoneIndex = indexes.find(
-      (index) => index.name === "phoneNumber_1" && index.unique
-    );
+    const legacyIndexes = indexes.filter((index) => {
+      if (!index.unique || !index.key) return false;
 
-    if (legacyPhoneIndex) {
-      await EmergencyContact.collection.dropIndex("phoneNumber_1");
+      const keyFields = Object.keys(index.key);
+      return keyFields.some((field) =>
+        ["phoneNumber", "email"].includes(field)
+      );
+    });
+
+    for (const index of legacyIndexes) {
+      await EmergencyContact.collection.dropIndex(index.name);
       logger.info(
-        "Dropped legacy unique index on EmergencyContact.phoneNumber to allow multiple contacts per user."
+        `Dropped legacy unique index '${index.name}' on EmergencyContact to remove obsolete uniqueness constraints.`
       );
     }
   } catch (error) {
-    if (error.codeName !== "IndexNotFound") {
+    const ignoredErrors = ["IndexNotFound", "NamespaceNotFound"];
+    if (!ignoredErrors.includes(error.codeName)) {
       logger.warn(
         `Could not adjust EmergencyContact phone number index: ${error.message}`
       );

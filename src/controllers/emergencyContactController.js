@@ -93,6 +93,7 @@ class EmergencyContactController {
         return res.status(400).json({
           success: false,
           message: "Emergency contact with this phone number already exists",
+          error: error.message,
         });
       }
 
