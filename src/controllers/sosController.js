@@ -49,15 +49,8 @@ class SOSController {
 
   async quickTriggerSOS(req, res) {
     try {
-      const {
-        location,
-        fallbackLocation,
-        customNote,
-        wasOffline,
-        metadata,
-        guestSessionId,
-        guestContacts,
-      } = req.body;
+      const { location, customNote, wasOffline, metadata, guestSessionId, guestContacts } =
+        req.body;
 
       if (req.user) {
         const userId = req.user._id;
@@ -79,7 +72,6 @@ class SOSController {
 
         const sos = await sosService.createSOSAlert(userId, {
           location,
-          fallbackLocation,
           customNote,
           wasOffline,
           metadata,
@@ -122,9 +114,17 @@ class SOSController {
       guestSession.lastActivity = new Date();
       await guestSession.save();
 
+      // If location is provided, it must include an address
+      if (location && !location.address) {
+        return res.status(400).json({
+          success: false,
+          message: 'If location is provided, it must include an address.',
+          authenticated: false,
+        });
+      }
+
       const sos = await sosService.createGuestSOSAlert(guestSessionId, {
-        location,
-        fallbackLocation,
+        location: location || null,
         customNote,
         wasOffline,
         metadata,
@@ -150,12 +150,10 @@ class SOSController {
   async triggerSOS(req, res) {
     try {
       const userId = req.user._id;
-      const { location, fallbackLocation, customNote, wasOffline, metadata } =
-        req.body;
+      const { location, customNote, wasOffline, metadata } = req.body;
 
       const sos = await sosService.createSOSAlert(userId, {
         location,
-        fallbackLocation,
         customNote,
         wasOffline,
         metadata,
@@ -196,37 +194,6 @@ class SOSController {
     }
   }
 
-  async getSOSDetails(req, res) {
-    try {
-      const { id } = req.params;
-      const userId = req.user._id;
-
-      const SOS = require("../models/sos");
-      const sos = await SOS.findOne({ _id: id, userId }).populate(
-        "contacts.contactId",
-        "name relationship phoneNumber"
-      );
-
-      if (!sos) {
-        return res.status(404).json({
-          success: false,
-          message: "SOS alert not found",
-        });
-      }
-
-      return res.json({
-        success: true,
-        message: "SOS details retrieved successfully",
-        data: sos,
-      });
-    } catch (error) {
-      logger.error("Get SOS details error:", error);
-      return res.status(500).json({
-        success: false,
-        message: error.message,
-      });
-    }
-  }
 }
 
 module.exports = new SOSController();

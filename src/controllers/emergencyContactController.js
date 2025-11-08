@@ -5,38 +5,18 @@ class EmergencyContactController {
   async getContacts(req, res) {
     try {
       const userId = req.user._id;
-      const contacts = await EmergencyContact.find({ userId })
-        .sort({ priority: -1, createdAt: 1 });
+      const contacts = await EmergencyContact.find({ userId }).sort({ createdAt: 1 });
 
       return res.json({
         success: true,
         message: 'Emergency contacts retrieved successfully',
-        data: contacts
+        data: contacts,
       });
     } catch (error) {
       logger.error('Get emergency contacts error:', error);
       return res.status(500).json({
         success: false,
-        message: error.message
-      });
-    }
-  }
-
-  async getActiveContacts(req, res) {
-    try {
-      const userId = req.user._id;
-      const contacts = await EmergencyContact.getActiveContacts(userId);
-
-      return res.json({
-        success: true,
-        message: 'Active emergency contacts retrieved successfully',
-        data: contacts
-      });
-    } catch (error) {
-      logger.error('Get active emergency contacts error:', error);
-      return res.status(500).json({
-        success: false,
-        message: error.message
+        message: error.message,
       });
     }
   }
@@ -72,13 +52,21 @@ class EmergencyContactController {
   async createContact(req, res) {
     try {
       const userId = req.user._id;
-      const { name, relationship, phoneNumber, email, priority, notes } = req.body;
+      const { name, relationship, phoneNumber, notes } = req.body;
 
-      const existingContact = await EmergencyContact.findOne({ userId, email });
+      // Validate phone number is provided
+      if (!phoneNumber) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone number is required for emergency contacts'
+        });
+      }
+
+      const existingContact = await EmergencyContact.findOne({ userId, phoneNumber });
       if (existingContact) {
         return res.status(400).json({
           success: false,
-          message: 'Emergency contact with this email address already exists'
+          message: 'Emergency contact with this phone number already exists'
         });
       }
 
@@ -87,10 +75,7 @@ class EmergencyContactController {
         name,
         relationship: relationship || 'other',
         phoneNumber,
-        email,
-        priority: priority || 0,
         notes,
-        consentGiven: true
       });
 
       return res.status(201).json({
@@ -113,7 +98,7 @@ class EmergencyContactController {
       if (error.code === 11000) {
         return res.status(400).json({
           success: false,
-          message: 'Emergency contact with this email address already exists'
+          message: 'Emergency contact with this phone number already exists'
         });
       }
 
@@ -128,7 +113,14 @@ class EmergencyContactController {
     try {
       const { id } = req.params;
       const userId = req.user._id;
-      const updateData = req.body;
+      const allowedFields = ['name', 'relationship', 'phoneNumber', 'notes'];
+      const updateData = {};
+
+      allowedFields.forEach((field) => {
+        if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+          updateData[field] = req.body[field];
+        }
+      });
 
       const contact = await EmergencyContact.findOne({ _id: id, userId });
 
@@ -139,17 +131,17 @@ class EmergencyContactController {
         });
       }
 
-      if (updateData.email && updateData.email !== contact.email) {
+      if (updateData.phoneNumber && updateData.phoneNumber !== contact.phoneNumber) {
         const existingContact = await EmergencyContact.findOne({
           userId,
-          email: updateData.email,
+          phoneNumber: updateData.phoneNumber,
           _id: { $ne: id }
         });
 
         if (existingContact) {
           return res.status(400).json({
             success: false,
-            message: 'Emergency contact with this email address already exists'
+            message: 'Emergency contact with this phone number already exists'
           });
         }
       }
@@ -215,37 +207,6 @@ class EmergencyContactController {
     }
   }
 
-  async toggleConsent(req, res) {
-    try {
-      const { id } = req.params;
-      const userId = req.user._id;
-      const { consentGiven } = req.body;
-
-      const contact = await EmergencyContact.findOne({ _id: id, userId });
-
-      if (!contact) {
-        return res.status(404).json({
-          success: false,
-          message: 'Emergency contact not found'
-        });
-      }
-
-      contact.consentGiven = consentGiven !== undefined ? consentGiven : !contact.consentGiven;
-      await contact.save();
-
-      return res.json({
-        success: true,
-        message: `Consent ${contact.consentGiven ? 'granted' : 'revoked'} successfully`,
-        data: contact
-      });
-    } catch (error) {
-      logger.error('Toggle consent error:', error);
-      return res.status(500).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
 }
 
 module.exports = new EmergencyContactController();
