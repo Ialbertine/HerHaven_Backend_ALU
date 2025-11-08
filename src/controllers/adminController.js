@@ -42,7 +42,7 @@ const adminController = {
 
       await counselor.save();
 
-       // Send invitation email to counselor
+      // Send invitation email to counselor
       try {
         await notificationService.sendCounselorInvitation(counselor, inviteToken);
         logger.info(`Invitation email sent to counselor: ${counselor.email}`);
@@ -56,7 +56,7 @@ const adminController = {
         });
       }
 
-       logger.info(`Counselor ${counselor.email} invited by admin ${admin.email}`);
+      logger.info(`Counselor ${counselor.email} invited by admin ${admin.email}`);
 
       res.status(201).json({
         success: true,
@@ -138,7 +138,7 @@ const adminController = {
 
       // Update counselor with all details
       counselor.username = SecurityUtils.sanitizeUserInput(username);
-      counselor.password = password; 
+      counselor.password = password;
       counselor.phoneNumber = SecurityUtils.sanitizeUserInput(phoneNumber);
       counselor.licenseNumber = SecurityUtils.sanitizeUserInput(licenseNumber);
       counselor.specialization = specialization;
@@ -389,6 +389,290 @@ const adminController = {
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve counselors'
+      });
+    }
+  },
+
+  // Get all users with optional filtering
+  getAllUsers: async (req, res) => {
+    try {
+      const { role, isActive, search } = req.query;
+
+      const filter = {};
+      if (role) {
+        filter.role = SecurityUtils.sanitizeUserInput(role);
+      }
+      if (typeof isActive !== 'undefined') {
+        filter.isActive = isActive === 'true' || isActive === true;
+      }
+      if (search) {
+        const sanitizedSearch = SecurityUtils.sanitizeUserInput(search);
+        if (sanitizedSearch) {
+          const searchRegex = new RegExp(sanitizedSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+          filter.$or = [
+            { email: searchRegex },
+            { username: searchRegex }
+          ];
+        }
+      }
+
+      const users = await User.find(filter)
+        .select('-password')
+        .sort({ createdAt: -1 });
+
+      res.json({
+        success: true,
+        message: 'Users retrieved successfully',
+        data: {
+          users,
+          count: users.length
+        }
+      });
+    } catch (error) {
+      logger.error('Get all users error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve users'
+      });
+    }
+  },
+
+  // Get single user by ID
+  getUserById: async (req, res) => {
+    try {
+      const { userId } = req.params;
+
+      const user = await User.findById(userId).select('-password');
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'User retrieved successfully',
+        data: { user }
+      });
+    } catch (error) {
+      logger.error('Get user by id error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve user'
+      });
+    }
+  },
+
+  // Create new user
+  createUser: async (req, res) => {
+    try {
+      const { email, password, username, role = 'user', isActive = true } = req.body;
+
+      if (!email || !password || !username) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email, username and password are required'
+        });
+      }
+
+      if (!SecurityUtils.validateEmail(email)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid email address'
+        });
+      }
+
+      if (!SecurityUtils.isStrongPassword(password)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must be at least 6 characters long and contain uppercase, lowercase letters and numbers'
+        });
+      }
+
+      const sanitizedEmail = SecurityUtils.sanitizeUserInput(email).toLowerCase();
+      const sanitizedUsername = SecurityUtils.sanitizeUserInput(username);
+      const sanitizedRole = SecurityUtils.sanitizeUserInput(role);
+      const allowedRoles = ['user', 'counselor', 'admin'];
+
+      if (!allowedRoles.includes(sanitizedRole)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid role specified'
+        });
+      }
+
+      const existingEmail = await User.findOne({ email: sanitizedEmail });
+      if (existingEmail) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email already exists'
+        });
+      }
+
+      const existingUsername = await User.findOne({ username: sanitizedUsername });
+      if (existingUsername) {
+        return res.status(400).json({
+          success: false,
+          message: 'Username already exists'
+        });
+      }
+
+      const user = new User({
+        email: sanitizedEmail,
+        password,
+        username: sanitizedUsername,
+        role: sanitizedRole,
+        isActive: isActive === true || isActive === 'true'
+      });
+
+      await user.save();
+
+      const userResponse = user.toObject();
+      delete userResponse.password;
+
+      logger.info(`User ${user.email} created by admin ${req.admin.email}`);
+
+      res.status(201).json({
+        success: true,
+        message: 'User created successfully',
+        data: { user: userResponse }
+      });
+    } catch (error) {
+      logger.error('Create user error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create user'
+      });
+    }
+  },
+
+  // Update existing user
+  updateUser: async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { email, password, username, role, isActive } = req.body;
+
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      if (email) {
+        if (!SecurityUtils.validateEmail(email)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid email address'
+          });
+        }
+
+        const sanitizedEmail = SecurityUtils.sanitizeUserInput(email).toLowerCase();
+        const emailExists = await User.findOne({ email: sanitizedEmail, _id: { $ne: userId } });
+        if (emailExists) {
+          return res.status(400).json({
+            success: false,
+            message: 'Email already in use'
+          });
+        }
+        user.email = sanitizedEmail;
+      }
+
+      if (username) {
+        const sanitizedUsername = SecurityUtils.sanitizeUserInput(username);
+        const usernameExists = await User.findOne({ username: sanitizedUsername, _id: { $ne: userId } });
+        if (usernameExists) {
+          return res.status(400).json({
+            success: false,
+            message: 'Username already in use'
+          });
+        }
+        user.username = sanitizedUsername;
+      }
+
+      if (role) {
+        const sanitizedRole = SecurityUtils.sanitizeUserInput(role);
+        const allowedRoles = ['user', 'counselor', 'admin'];
+        if (!allowedRoles.includes(sanitizedRole)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid role specified'
+          });
+        }
+        user.role = sanitizedRole;
+      }
+
+      if (typeof isActive !== 'undefined') {
+        user.isActive = isActive === true || isActive === 'true';
+      }
+
+      if (password) {
+        if (!SecurityUtils.isStrongPassword(password)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Password must be at least 6 characters long and contain uppercase, lowercase letters and numbers'
+          });
+        }
+        user.password = password;
+      }
+
+      await user.save();
+
+      const userResponse = user.toObject();
+      delete userResponse.password;
+
+      logger.info(`User ${user.email} updated by admin ${req.admin.email}`);
+
+      res.json({
+        success: true,
+        message: 'User updated successfully',
+        data: { user: userResponse }
+      });
+    } catch (error) {
+      logger.error('Update user error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update user'
+      });
+    }
+  },
+
+  // Delete user
+  deleteUser: async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const admin = req.admin;
+
+      if (typeof admin.hasPermission === 'function' && !admin.hasPermission('delete')) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have permission to delete users'
+        });
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      await User.deleteOne({ _id: userId });
+
+      logger.info(`User ${user.email} deleted by admin ${admin.email}`);
+
+      res.json({
+        success: true,
+        message: 'User deleted successfully'
+      });
+    } catch (error) {
+      logger.error('Delete user error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to delete user'
       });
     }
   },

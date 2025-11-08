@@ -24,6 +24,13 @@ router.put('/counselors/:counselorId/reject', requireCounselorApproval, adminCon
 router.put('/counselors/:counselorId/deactivate', adminController.deactivateCounselor);
 router.delete('/counselors/:counselorId', requireCounselorApproval, adminController.deleteCounselor);
 
+// user management
+router.get('/users', adminController.getAllUsers);
+router.get('/users/:userId', adminController.getUserById);
+router.post('/users', adminController.createUser);
+router.put('/users/:userId', adminController.updateUser);
+router.delete('/users/:userId', adminController.deleteUser);
+
 // will get all platform stats
 router.get('/stats', adminController.getPlatformStats);
 router.get('/dashboard', adminController.getDashboardOverview);
