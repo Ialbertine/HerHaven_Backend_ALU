@@ -16,6 +16,5 @@ router.post(
 // Authenticated Routes
 router.post("/trigger", auth, validateSOSTrigger, sosController.triggerSOS);
 router.post("/:id/cancel", auth, sosController.cancelSOS);
-router.get("/:id", auth, sosController.getSOSDetails);
 
 module.exports = router;

@@ -15,7 +15,7 @@ const sosContactSchema = new Schema({
   channel: {
     type: String,
     enum: ['sms', 'call', 'email'],
-    default: 'email'
+    default: 'sms'
   },
   lastAttemptAt: {
     type: Date
@@ -46,8 +46,7 @@ const sosContactSchema = new Schema({
   snapshot: {
     name: String,
     relationship: String,
-    phoneNumber: String,
-    email: String
+    phoneNumber: String
   }
 }, { _id: false });
 
@@ -72,14 +71,9 @@ const sosSchema = new Schema({
       type: String,
       required: true
     },
-    email: {
-      type: String,
-      required: true,
-      lowercase: true
-    },
     phoneNumber: {
       type: String,
-      required: false
+      required: true
     },
     relationship: {
       type: String,
@@ -94,21 +88,9 @@ const sosSchema = new Schema({
   },
   contacts: [sosContactSchema],
   location: {
-    latitude: {
-      type: Number
-    },
-    longitude: {
-      type: Number
-    },
     address: {
       type: String
-    },
-    accuracy: {
-      type: Number
     }
-  },
-  fallbackLocation: {
-    type: String
   },
   customNote: {
     type: String,

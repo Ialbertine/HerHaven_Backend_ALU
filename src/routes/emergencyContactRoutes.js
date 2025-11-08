@@ -9,9 +9,6 @@ router.use(auth);
 // Get all contacts
 router.get('/', emergencyContactController.getContacts);
 
-// Get active contacts
-router.get('/active', emergencyContactController.getActiveContacts);
-
 // Get single contact
 router.get('/:id', emergencyContactController.getContact);
 
@@ -23,9 +20,6 @@ router.put('/:id', emergencyContactController.updateContact);
 
 // Delete contact
 router.delete('/:id', emergencyContactController.deleteContact);
-
-// Toggle consent
-router.post('/:id/consent', emergencyContactController.toggleConsent);
 
 module.exports = router;
 
