@@ -934,7 +934,7 @@ const adminController = {
     }
   },
 
-  // Get 3-month analytics summary 
+  // Get 3-month analytics summary
   getThreeMonthSummary: async (req, res) => {
     try {
       const Appointment = require("../models/appointment");
@@ -1049,6 +1049,216 @@ const adminController = {
       res.status(500).json({
         success: false,
         message: "Failed to retrieve 3-month summary",
+      });
+    }
+  },
+
+  // Get users historical data for analytics
+  getUsersHistoricalData: async (req, res) => {
+    try {
+      const { period = "3months" } = req.query;
+
+      const startDate = new Date();
+      switch (period) {
+        case "1month":
+          startDate.setMonth(startDate.getMonth() - 1);
+          break;
+        case "6months":
+          startDate.setMonth(startDate.getMonth() - 6);
+          break;
+        case "1year":
+          startDate.setFullYear(startDate.getFullYear() - 1);
+          break;
+        case "3months":
+        default:
+          startDate.setMonth(startDate.getMonth() - 3);
+      }
+
+      const historicalData = await User.aggregate([
+        { $match: { createdAt: { $gte: startDate } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            newUsers: { $sum: 1 },
+            activeUsers: {
+              $sum: { $cond: [{ $eq: ["$isActive", true] }, 1, 0] },
+            },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]);
+
+      const totalUsers = await User.countDocuments();
+      const activeUsers = await User.countDocuments({ isActive: true });
+
+      res.json({
+        success: true,
+        message: "Users historical data retrieved successfully",
+        data: {
+          period,
+          totalUsers,
+          activeUsers,
+          historicalData,
+        },
+      });
+    } catch (error) {
+      logger.error("Get users historical data error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to retrieve users historical data",
+      });
+    }
+  },
+
+  // Get counselors historical data for analytics
+  getCounselorsHistoricalData: async (req, res) => {
+    try {
+      const { period = "3months" } = req.query;
+
+      const startDate = new Date();
+      switch (period) {
+        case "1month":
+          startDate.setMonth(startDate.getMonth() - 1);
+          break;
+        case "6months":
+          startDate.setMonth(startDate.getMonth() - 6);
+          break;
+        case "1year":
+          startDate.setFullYear(startDate.getFullYear() - 1);
+          break;
+        case "3months":
+        default:
+          startDate.setMonth(startDate.getMonth() - 3);
+      }
+
+      const historicalData = await Counselor.aggregate([
+        { $match: { createdAt: { $gte: startDate } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            newCounselors: { $sum: 1 },
+            approved: {
+              $sum: {
+                $cond: [{ $eq: ["$verificationStatus", "approved"] }, 1, 0],
+              },
+            },
+            pending: {
+              $sum: {
+                $cond: [{ $eq: ["$verificationStatus", "pending"] }, 1, 0],
+              },
+            },
+            rejected: {
+              $sum: {
+                $cond: [{ $eq: ["$verificationStatus", "rejected"] }, 1, 0],
+              },
+            },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]);
+
+      const totalCounselors = await Counselor.countDocuments();
+      const approvedCounselors = await Counselor.countDocuments({
+        verificationStatus: "approved",
+      });
+      const pendingCounselors = await Counselor.countDocuments({
+        verificationStatus: "pending",
+      });
+
+      res.json({
+        success: true,
+        message: "Counselors historical data retrieved successfully",
+        data: {
+          period,
+          totalCounselors,
+          approvedCounselors,
+          pendingCounselors,
+          historicalData,
+        },
+      });
+    } catch (error) {
+      logger.error("Get counselors historical data error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to retrieve counselors historical data",
+      });
+    }
+  },
+
+  // Get appointments historical data for analytics
+  getAppointmentsHistoricalData: async (req, res) => {
+    try {
+      const Appointment = require("../models/appointment");
+      const { period = "3months" } = req.query;
+
+      const startDate = new Date();
+      switch (period) {
+        case "1month":
+          startDate.setMonth(startDate.getMonth() - 1);
+          break;
+        case "6months":
+          startDate.setMonth(startDate.getMonth() - 6);
+          break;
+        case "1year":
+          startDate.setFullYear(startDate.getFullYear() - 1);
+          break;
+        case "3months":
+        default:
+          startDate.setMonth(startDate.getMonth() - 3);
+      }
+
+      const historicalData = await Appointment.aggregate([
+        { $match: { createdAt: { $gte: startDate } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            total: { $sum: 1 },
+            completed: {
+              $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
+            },
+            cancelled: {
+              $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] },
+            },
+            pending: {
+              $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] },
+            },
+            confirmed: {
+              $sum: { $cond: [{ $eq: ["$status", "confirmed"] }, 1, 0] },
+            },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]);
+
+      const totalAppointments = await Appointment.countDocuments();
+      const completedAppointments = await Appointment.countDocuments({
+        status: "completed",
+      });
+      const upcomingAppointments = await Appointment.countDocuments({
+        status: { $in: ["pending", "confirmed"] },
+        appointmentDate: { $gte: new Date() },
+      });
+
+      res.json({
+        success: true,
+        message: "Appointments historical data retrieved successfully",
+        data: {
+          period,
+          totalAppointments,
+          completedAppointments,
+          upcomingAppointments,
+          completionRate:
+            totalAppointments > 0
+              ? ((completedAppointments / totalAppointments) * 100).toFixed(1)
+              : 0,
+          historicalData,
+        },
+      });
+    } catch (error) {
+      logger.error("Get appointments historical data error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to retrieve appointments historical data",
       });
     }
   },
