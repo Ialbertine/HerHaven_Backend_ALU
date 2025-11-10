@@ -1,24 +1,29 @@
-const mongoose = require('mongoose');
-const SOS = require('../models/sos');
-const EmergencyContact = require('../models/emergency');
-const User = require('../models/user');
-const smsService = require('./smsService');
-const logger = require('../utils/logger');
+const mongoose = require("mongoose");
+const SOS = require("../models/sos");
+const EmergencyContact = require("../models/emergency");
+const User = require("../models/user");
+const smsService = require("./smsService");
+const logger = require("../utils/logger");
 
-const isValidObjectId = (value) => mongoose.Types.ObjectId.isValid(String(value));
+const isValidObjectId = (value) =>
+  mongoose.Types.ObjectId.isValid(String(value));
 
 const recalcSOSStatus = (sosDoc) => {
-  if (!sosDoc || !Array.isArray(sosDoc.contacts) || sosDoc.contacts.length === 0) {
+  if (
+    !sosDoc ||
+    !Array.isArray(sosDoc.contacts) ||
+    sosDoc.contacts.length === 0
+  ) {
     return;
   }
 
   const statuses = sosDoc.contacts.map((entry) => entry.status);
-  if (statuses.every((status) => status === 'failed')) {
-    sosDoc.status = 'failed';
-  } else if (statuses.some((status) => status === 'sent')) {
-    sosDoc.status = 'sent';
-  } else if (statuses.every((status) => status === 'pending')) {
-    sosDoc.status = 'pending';
+  if (statuses.every((status) => status === "failed")) {
+    sosDoc.status = "failed";
+  } else if (statuses.some((status) => status === "sent")) {
+    sosDoc.status = "sent";
+  } else if (statuses.every((status) => status === "pending")) {
+    sosDoc.status = "pending";
   }
 };
 
@@ -29,7 +34,7 @@ const dispatchSMSAlerts = async (sosDoc, context) => {
 
   const pendingEntries = (sosDoc.contacts || [])
     .map((record, index) => ({ record, index }))
-    .filter(({ record }) => record.status !== 'sent');
+    .filter(({ record }) => record.status !== "sent");
 
   if (pendingEntries.length === 0) {
     return;
@@ -44,13 +49,15 @@ const dispatchSMSAlerts = async (sosDoc, context) => {
       .filter((id) => isValidObjectId(id));
 
     const [userDoc, contacts] = await Promise.all([
-      User.findById(sosDoc.userId).select('firstName lastName username email').lean(),
+      User.findById(sosDoc.userId)
+        .select("firstName lastName username email")
+        .lean(),
       EmergencyContact.find({
         _id: { $in: contactIds },
         isActive: true,
         consentGiven: true,
       })
-        .select('phoneNumber name')
+        .select("phoneNumber name")
         .lean(),
     ]);
 
@@ -60,7 +67,7 @@ const dispatchSMSAlerts = async (sosDoc, context) => {
     sosDoc.guestContacts.forEach((guestContact, index) => {
       contactMap.set(`guest_${index}`, {
         phoneNumber: guestContact.phoneNumber,
-        name: guestContact.name
+        name: guestContact.name,
       });
     });
   }
@@ -76,24 +83,24 @@ const dispatchSMSAlerts = async (sosDoc, context) => {
     if (sosDoc.isGuest && sosDoc.guestContacts) {
       contact = {
         phoneNumber: sosDoc.guestContacts[index]?.phoneNumber,
-        name: sosDoc.guestContacts[index]?.name
+        name: sosDoc.guestContacts[index]?.name,
       };
     } else {
       contact = contactMap.get(String(record.contactId));
     }
 
     if (!contact || !contact.phoneNumber) {
-      entry.status = 'failed';
+      entry.status = "failed";
       entry.lastAttemptAt = now;
-      entry.lastError = 'Missing phone number';
+      entry.lastError = "Missing phone number";
       entry.history.push({
-        channel: 'sms',
-        status: 'failed',
+        channel: "sms",
+        status: "failed",
         sentAt: now,
-        metadata: { error: 'Missing phone number' },
+        metadata: { error: "Missing phone number" },
       });
       contactsModified = true;
-      logger.error('SOS alert failed: Missing phone number', {
+      logger.error("SOS alert failed: Missing phone number", {
         sosId: sosDoc._id,
         contactId: record.contactId || `guest_${index}`,
       });
@@ -102,47 +109,60 @@ const dispatchSMSAlerts = async (sosDoc, context) => {
 
     try {
       // Get phone number from metadata or SOS document metadata
-      const helpSeekerPhone = sosDoc.metadata?.phoneNumber || context.metadata?.phoneNumber || null;
+      const helpSeekerPhone =
+        sosDoc.metadata?.phoneNumber || context.metadata?.phoneNumber || null;
 
-      const smsMessage = smsService.buildSOSMessage(user || { username: 'Guest User' }, {
-        ...context,
-        metadata: sosDoc.metadata || context.metadata || {},
-        phoneNumber: helpSeekerPhone
-      });
+      const smsMessage = smsService.buildSOSMessage(
+        user || { username: "Guest User" },
+        {
+          ...context,
+          metadata: sosDoc.metadata || context.metadata || {},
+          phoneNumber: helpSeekerPhone,
+        }
+      );
 
-      const smsResult = await smsService.sendSMS(contact.phoneNumber, smsMessage);
+      const smsResult = await smsService.sendSMS(
+        contact.phoneNumber,
+        smsMessage
+      );
 
       if (smsResult.success) {
-        entry.status = 'sent';
-        entry.channel = 'sms';
+        entry.status = "sent";
+        entry.channel = "sms";
         entry.lastAttemptAt = now;
         entry.lastError = undefined;
         entry.twilioSid = smsResult.messageId;
         entry.history.push({
-          channel: 'sms',
-          status: 'sent',
+          channel: "sms",
+          status: "sent",
           sentAt: now,
-          metadata: { messageId: smsResult.messageId, status: smsResult.status },
+          metadata: {
+            messageId: smsResult.messageId,
+            status: smsResult.status,
+          },
         });
-        logger.info(`SOS SMS alert sent successfully to ${contact.phoneNumber}`, {
-          sosId: sosDoc._id,
-          contactId: record.contactId || `guest_${index}`,
-        });
+        logger.info(
+          `SOS SMS alert sent successfully to ${contact.phoneNumber}`,
+          {
+            sosId: sosDoc._id,
+            contactId: record.contactId || `guest_${index}`,
+          }
+        );
       } else {
-        throw new Error(smsResult.error || 'SMS send failed');
+        throw new Error(smsResult.error || "SMS send failed");
       }
     } catch (error) {
-      entry.status = 'failed';
+      entry.status = "failed";
       entry.lastAttemptAt = now;
       entry.lastError = error.message;
       entry.history.push({
-        channel: 'sms',
-        status: 'failed',
+        channel: "sms",
+        status: "failed",
         sentAt: now,
         metadata: { error: error.message },
       });
 
-      logger.error('SOS SMS dispatch failed', {
+      logger.error("SOS SMS dispatch failed", {
         sosId: sosDoc._id,
         contactId: record.contactId || `guest_${index}`,
         phoneNumber: contact.phoneNumber,
@@ -154,7 +174,7 @@ const dispatchSMSAlerts = async (sosDoc, context) => {
   }
 
   if (contactsModified) {
-    sosDoc.markModified('contacts');
+    sosDoc.markModified("contacts");
   }
 
   recalcSOSStatus(sosDoc);
@@ -163,7 +183,7 @@ const dispatchSMSAlerts = async (sosDoc, context) => {
 
 const createSOSAlert = async (userId, payload = {}) => {
   if (!isValidObjectId(userId)) {
-    throw new Error('Invalid user identifier');
+    throw new Error("Invalid user identifier");
   }
 
   const contacts = await EmergencyContact.find({
@@ -171,22 +191,26 @@ const createSOSAlert = async (userId, payload = {}) => {
     isActive: true,
     consentGiven: true,
   })
-    .select('name phoneNumber relationship')
+    .select("name phoneNumber relationship")
     .lean();
 
   if (!contacts.length) {
-    throw new Error('No active emergency contacts configured');
+    throw new Error("No active emergency contacts configured");
   }
 
-  const contactsWithoutPhone = contacts.filter(c => !c.phoneNumber);
+  const contactsWithoutPhone = contacts.filter((c) => !c.phoneNumber);
   if (contactsWithoutPhone.length > 0) {
-    throw new Error(`Some emergency contacts are missing phone numbers: ${contactsWithoutPhone.map(c => c.name).join(', ')}`);
+    throw new Error(
+      `Some emergency contacts are missing phone numbers: ${contactsWithoutPhone
+        .map((c) => c.name)
+        .join(", ")}`
+    );
   }
 
   const contactSnapshots = contacts.map((contact) => ({
     contactId: contact._id,
-    status: 'pending',
-    channel: 'sms',
+    status: "pending",
+    channel: "sms",
     history: [],
     snapshot: {
       name: contact.name,
@@ -197,7 +221,7 @@ const createSOSAlert = async (userId, payload = {}) => {
 
   const sosDoc = await SOS.create({
     userId,
-    status: 'pending',
+    status: "pending",
     contacts: contactSnapshots,
     location: payload.location || null,
     customNote: payload.customNote || null,
@@ -214,44 +238,50 @@ const createSOSAlert = async (userId, payload = {}) => {
   });
 
   await sosDoc.populate({
-    path: 'contacts.contactId',
-    select: 'name relationship phoneNumber',
+    path: "contacts.contactId",
+    select: "name relationship phoneNumber",
   });
 
   return sosDoc;
 };
 
 const createGuestSOSAlert = async (guestSessionId, payload = {}) => {
-  if (!guestSessionId || typeof guestSessionId !== 'string') {
-    throw new Error('Valid guest session ID is required');
+  if (!guestSessionId || typeof guestSessionId !== "string") {
+    throw new Error("Valid guest session ID is required");
   }
 
-  if (!payload.guestContacts || !Array.isArray(payload.guestContacts) || payload.guestContacts.length === 0) {
-    throw new Error('At least one emergency contact is required for guest SOS');
+  if (
+    !payload.guestContacts ||
+    !Array.isArray(payload.guestContacts) ||
+    payload.guestContacts.length === 0
+  ) {
+    throw new Error("At least one emergency contact is required for guest SOS");
   }
 
   // If location is provided, ensure it includes an address
   if (payload.location && !payload.location.address) {
-    throw new Error('If location is provided, it must include an address.');
+    throw new Error("If location is provided, it must include an address.");
   }
 
-  const phoneRegex = /^\+[1-9]\d{1,14}$/;
+  const phoneRegex = /^\d{10}$/;
   for (const contact of payload.guestContacts) {
-    if (!contact.name || !contact.phoneNumber) {
-      throw new Error('Each contact must have name and phone number');
+    if (!contact.phoneNumber) {
+      throw new Error("Each contact must have a phone number");
     }
     if (!phoneRegex.test(contact.phoneNumber)) {
-      throw new Error(`Invalid phone number format: ${contact.phoneNumber}.`);
+      throw new Error(
+        `Invalid phone number format: ${contact.phoneNumber}. Phone number must be 10 digits.`
+      );
     }
   }
 
   const contactSnapshots = payload.guestContacts.map((contact) => ({
-    status: 'pending',
-    channel: 'sms',
+    status: "pending",
+    channel: "sms",
     history: [],
     snapshot: {
-      name: contact.name,
-      relationship: contact.relationship || 'other',
+      name: contact.name || "Emergency Contact",
+      relationship: contact.relationship || "other",
       phoneNumber: contact.phoneNumber,
     },
   }));
@@ -259,12 +289,12 @@ const createGuestSOSAlert = async (guestSessionId, payload = {}) => {
   const sosDoc = await SOS.create({
     guestSessionId,
     isGuest: true,
-    status: 'pending',
+    status: "pending",
     contacts: contactSnapshots,
-    guestContacts: payload.guestContacts.map(c => ({
-      name: c.name,
+    guestContacts: payload.guestContacts.map((c) => ({
+      name: c.name || "Emergency Contact",
       phoneNumber: c.phoneNumber,
-      relationship: c.relationship || 'other'
+      relationship: c.relationship || "other",
     })),
     location: payload.location || null,
     customNote: payload.customNote || null,
@@ -285,12 +315,12 @@ const createGuestSOSAlert = async (guestSessionId, payload = {}) => {
 
 const requireOwnedSOS = async (sosId, userId) => {
   if (!isValidObjectId(sosId)) {
-    throw new Error('Invalid SOS identifier');
+    throw new Error("Invalid SOS identifier");
   }
 
   const sosDoc = await SOS.findOne({ _id: sosId, userId });
   if (!sosDoc) {
-    throw new Error('SOS alert not found');
+    throw new Error("SOS alert not found");
   }
 
   return sosDoc;
@@ -299,11 +329,11 @@ const requireOwnedSOS = async (sosId, userId) => {
 const cancelSOSAlert = async (sosId, userId) => {
   const sosDoc = await requireOwnedSOS(sosId, userId);
 
-  if (['cancelled', 'resolved'].includes(sosDoc.status)) {
+  if (["cancelled", "resolved"].includes(sosDoc.status)) {
     return sosDoc;
   }
 
-  sosDoc.status = 'cancelled';
+  sosDoc.status = "cancelled";
   sosDoc.cancelledAt = new Date();
   await sosDoc.save();
 
@@ -313,11 +343,11 @@ const cancelSOSAlert = async (sosId, userId) => {
 const resolveSOSAlert = async (sosId, userId) => {
   const sosDoc = await requireOwnedSOS(sosId, userId);
 
-  if (sosDoc.status === 'resolved') {
+  if (sosDoc.status === "resolved") {
     return sosDoc;
   }
 
-  sosDoc.status = 'resolved';
+  sosDoc.status = "resolved";
   sosDoc.resolvedAt = new Date();
   await sosDoc.save();
 
@@ -338,7 +368,7 @@ const getSOSHistory = async (userId, options = {}) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('contacts.contactId', 'name relationship phoneNumber')
+      .populate("contacts.contactId", "name relationship phoneNumber")
       .lean(),
     SOS.countDocuments(filters),
   ]);
@@ -359,17 +389,19 @@ const getSOSHistory = async (userId, options = {}) => {
 
 const retryFailedAlerts = async (sosId) => {
   if (!isValidObjectId(sosId)) {
-    throw new Error('Invalid SOS identifier');
+    throw new Error("Invalid SOS identifier");
   }
 
   const sosDoc = await SOS.findById(sosId);
   if (!sosDoc) {
-    throw new Error('SOS alert not found');
+    throw new Error("SOS alert not found");
   }
 
-  const failedCount = (sosDoc.contacts || []).filter((entry) => entry.status === 'failed').length;
+  const failedCount = (sosDoc.contacts || []).filter(
+    (entry) => entry.status === "failed"
+  ).length;
   if (!failedCount) {
-    throw new Error('No failed alerts to retry');
+    throw new Error("No failed alerts to retry");
   }
 
   await dispatchSMSAlerts(sosDoc, {
@@ -379,8 +411,8 @@ const retryFailedAlerts = async (sosId) => {
   });
 
   await sosDoc.populate({
-    path: 'contacts.contactId',
-    select: 'name relationship phoneNumber',
+    path: "contacts.contactId",
+    select: "name relationship phoneNumber",
   });
 
   return sosDoc;
@@ -394,4 +426,3 @@ module.exports = {
   getSOSHistory,
   retryFailedAlerts,
 };
-
