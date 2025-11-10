@@ -44,8 +44,6 @@ class SMSService {
 
   /**
    * Validates phone number format (E.164 format)
-   * @param {string} phoneNumber - Phone number to validate
-   * @returns {boolean} - True if valid
    */
   isValidPhoneNumber(phoneNumber) {
     if (!phoneNumber || typeof phoneNumber !== "string") {
@@ -57,10 +55,7 @@ class SMSService {
   }
 
   /**
-   * Sends SMS message
-   * @param {string} to - Recipient phone number (E.164 format)
-   * @param {string} message - Message body
-   * @returns {Promise<{success: boolean, messageId?: string, error?: string}>}
+   * Sends SMS message via Twilio
    */
   async sendSMS(to, message) {
     try {
@@ -99,7 +94,7 @@ class SMSService {
         };
       }
 
-      // Check message length (Twilio limit is 1600 characters for a single SMS)
+      // Check message length
       if (message.length > 1600) {
         logger.warn(
           `Message length (${message.length}) exceeds recommended length. Twilio will split into multiple messages.`
@@ -146,12 +141,6 @@ class SMSService {
     }
   }
 
-  /**
-   * Builds SOS alert SMS message
-   * @param {object} user - User object with name/username
-   * @param {object} context - Context with location, customNote, etc.
-   * @returns {string} - Formatted SMS message
-   */
   buildSOSMessage(user, context = {}) {
     const names = [user?.firstName, user?.lastName]
       .filter(Boolean)
@@ -159,37 +148,35 @@ class SMSService {
       .trim();
     const displayName = names || user?.username || user?.email || "Someone";
 
-    let message = `🚨 URGENT SOS ALERT\n\n`;
-    message += `${displayName} needs immediate assistance!\n\n`;
+    let message = `URGENT SOS: ${displayName} needs help!\n`;
 
-    // Add location information
+    // Add location if available
     if (context.location?.address) {
-      message += `Location: ${context.location.address}\n`;
-      message += `Map: https://maps.google.com/?q=${encodeURIComponent(
-        context.location.address
-      )}\n\n`;
-    } else {
-      message += `Location not available\n\n`;
+      const address =
+        context.location.address.length > 50
+          ? context.location.address.substring(0, 47) + "..."
+          : context.location.address;
+      message += `At: ${address}\n`;
     }
 
     // Add custom note if available
     if (context.customNote) {
-      message += `Message: ${context.customNote}\n\n`;
+      const note =
+        context.customNote.length > 40
+          ? context.customNote.substring(0, 37) + "..."
+          : context.customNote;
+      message += `Note: ${note}\n`;
     }
 
     // Add phone number if available
     const helpSeekerPhone =
       context.metadata?.phoneNumber || context.phoneNumber;
     if (helpSeekerPhone) {
-      message += `📞 Call: ${helpSeekerPhone}\n\n`;
+      message += `Call: ${helpSeekerPhone}\n`;
     }
 
-    // Add emergency numbers
-    message += `Emergency Services:\n`;
-    message += `3029, 112, or 3212\n\n`;
-
-    message += `Alert Time: ${new Date().toLocaleString()}\n`;
-    message += `\nPlease respond immediately!`;
+    // Add emergency numbers (shortened)
+    message += `Emergency: 112, 3029`;
 
     return message;
   }
