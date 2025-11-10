@@ -29,9 +29,11 @@ const emergencyContactSchema = new Schema(
       validate: {
         validator: function (v) {
           if (!v) return false;
-          return /^\d{10}$/.test(v);
+          // Allow formats: +250123456789
+          return /^(\+?\d{1,4})?[\s-]?\d{9,10}$/.test(v);
         },
-        message: "phone number must be 10 digits",
+        message:
+          "Phone number must be a valid format (e.g., +250123456789)",
       },
     },
     notes: {
@@ -49,7 +51,6 @@ const emergencyContactSchema = new Schema(
     timestamps: true,
   }
 );
-
 
 const EmergencyContact = mongoose.model(
   "EmergencyContact",
