@@ -108,7 +108,13 @@ class EmergencyContactController {
     try {
       const { id } = req.params;
       const userId = req.user._id;
-      const allowedFields = ["name", "relationship", "phoneNumber", "notes"];
+      const allowedFields = [
+        "name",
+        "relationship",
+        "phoneNumber",
+        "notes",
+        "isActive",
+      ];
       const updateData = {};
 
       allowedFields.forEach((field) => {

@@ -18,7 +18,7 @@ class SOSController {
       const EmergencyContact = require("../models/emergency");
       const contactCount = await EmergencyContact.countDocuments({
         userId: req.user._id,
-        isActive: true,
+        $or: [{ isActive: true }, { isActive: { $exists: false } }],
         consentGiven: true,
       });
 
@@ -49,15 +49,21 @@ class SOSController {
 
   async quickTriggerSOS(req, res) {
     try {
-      const { location, customNote, wasOffline, metadata, guestSessionId, guestContacts } =
-        req.body;
+      const {
+        location,
+        customNote,
+        wasOffline,
+        metadata,
+        guestSessionId,
+        guestContacts,
+      } = req.body;
 
       if (req.user) {
         const userId = req.user._id;
         const EmergencyContact = require("../models/emergency");
         const contactCount = await EmergencyContact.countDocuments({
           userId,
-          isActive: true,
+          $or: [{ isActive: true }, { isActive: { $exists: false } }],
           consentGiven: true,
         });
 
@@ -118,7 +124,7 @@ class SOSController {
       if (location && !location.address) {
         return res.status(400).json({
           success: false,
-          message: 'If location is provided, it must include an address.',
+          message: "If location is provided, it must include an address.",
           authenticated: false,
         });
       }
@@ -193,7 +199,6 @@ class SOSController {
       });
     }
   }
-
 }
 
 module.exports = new SOSController();

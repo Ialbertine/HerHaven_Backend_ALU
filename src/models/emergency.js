@@ -32,13 +32,17 @@ const emergencyContactSchema = new Schema(
           // Allow formats: +250123456789
           return /^(\+?\d{1,4})?[\s-]?\d{9,10}$/.test(v);
         },
-        message:
-          "Phone number must be a valid format (e.g., +250123456789)",
+        message: "Phone number must be a valid format (e.g., +250123456789)",
       },
     },
     notes: {
       type: String,
       maxlength: [500, "Notes cannot exceed 500 characters"],
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
     },
     consentGiven: {
       type: Boolean,

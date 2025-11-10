@@ -54,7 +54,7 @@ const dispatchSMSAlerts = async (sosDoc, context) => {
         .lean(),
       EmergencyContact.find({
         _id: { $in: contactIds },
-        isActive: true,
+        $or: [{ isActive: true }, { isActive: { $exists: false } }],
         consentGiven: true,
       })
         .select("phoneNumber name")
@@ -188,7 +188,7 @@ const createSOSAlert = async (userId, payload = {}) => {
 
   const contacts = await EmergencyContact.find({
     userId,
-    isActive: true,
+    $or: [{ isActive: true }, { isActive: { $exists: false } }],
     consentGiven: true,
   })
     .select("name phoneNumber relationship")
