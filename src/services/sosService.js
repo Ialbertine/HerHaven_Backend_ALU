@@ -263,16 +263,46 @@ const createGuestSOSAlert = async (guestSessionId, payload = {}) => {
     throw new Error("If location is provided, it must include an address.");
   }
 
-  const phoneRegex = /^\d{10}$/;
+  // Normalize phone numbers to E.164 format (required by Twilio)
   for (const contact of payload.guestContacts) {
     if (!contact.phoneNumber) {
       throw new Error("Each contact must have a phone number");
     }
-    if (!phoneRegex.test(contact.phoneNumber)) {
+
+    let cleanedPhone = contact.phoneNumber.trim().replace(/[\s\-()]/g, "");
+
+    if (!cleanedPhone.startsWith("+")) {
+      if (cleanedPhone.startsWith("0")) {
+        cleanedPhone = cleanedPhone.substring(1);
+      }
+      if (/^[7]\d{8}$/.test(cleanedPhone)) {
+        // Add Rwanda country code
+        cleanedPhone = `+250${cleanedPhone}`;
+        logger.info(
+          `Converted phone number ${contact.phoneNumber} to E.164 format: ${cleanedPhone}`
+        );
+      } else if (/^\d{10}$/.test(cleanedPhone)) {
+        cleanedPhone = `+250${cleanedPhone}`;
+        logger.info(
+          `Converted phone number ${contact.phoneNumber} to E.164 format: ${cleanedPhone}`
+        );
+      } else {
+        throw new Error(
+          `Invalid phone number format: ${contact.phoneNumber}. Phone number must be in format: 0788123456, 788123456, or +250788123456`
+        );
+      }
+    }
+
+    // Validate E.164 format using SMS service validator
+    if (!smsService.isValidPhoneNumber(cleanedPhone)) {
       throw new Error(
-        `Invalid phone number format: ${contact.phoneNumber}. Phone number must be 10 digits.`
+        `Invalid phone number: ${contact.phoneNumber}. After conversion got ${cleanedPhone}. Must be valid E.164 format (e.g., +250788123456)`
       );
     }
+
+    // Update the contact with normalized phone number
+    contact.phoneNumber = cleanedPhone;
+    logger.info(`Final phone number for SMS: ${cleanedPhone}`);
   }
 
   const contactSnapshots = payload.guestContacts.map((contact) => ({
