@@ -21,6 +21,7 @@ const chatRoutes = require("./routes/chatRoutes");
 const sosRoutes = require("./routes/sosRoutes");
 const emergencyContactRoutes = require("./routes/emergencyContactRoutes");
 const contactRoutes = require("./routes/contactRoutes");
+const assessmentRoutes = require("./routes/assessmentRoutes");
 
 // Initialize express app
 const app = express();
@@ -113,6 +114,7 @@ app.use("/api", chatRoutes);
 app.use("/api/sos", sosRoutes);
 app.use("/api/emergency-contacts", emergencyContactRoutes);
 app.use("/api/contact", contactRoutes);
+app.use("/api/assessments", assessmentRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
