@@ -21,7 +21,10 @@ const notificationSchema = new mongoose.Schema({
       'payment_success',
       'payment_failed',
       'counselor_approved',
-      'counselor_rejected'
+      'counselor_rejected',
+      'assessment_crisis',
+      'assessment_crisis_shared',
+      'assessment_shared'
     ],
     required: true
   },
