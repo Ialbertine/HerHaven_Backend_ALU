@@ -48,8 +48,8 @@ router.put("/templates/:templateId", auth, requireAdmin, validate(updateTemplate
 // Delete assessment template (admin only)
 router.delete("/templates/:templateId", auth, requireAdmin, assessmentController.deleteTemplate);
 
-// Assessment submission routes (authenticated users)
-// Submit assessment response (authenticated users
+// Assessment submission routes 
+// Submit assessment response for authenticated users
 router.post("/submit", auth, requireUser, validate(submitAssessmentValidation), assessmentController.submitAssessment);
 
 // Submit anonymous assessment (deprecated - use /public/submit instead)
