@@ -942,6 +942,279 @@ const assessmentController = {
         message: 'Failed to delete assessment'
       });
     }
+  },
+
+  // PUBLIC ENDPOINTS 
+  getPublicTemplates: async (req, res) => {
+    try {
+      const { category } = req.query;
+
+      const filter = {
+        isPublished: true,
+        isActive: true
+      };
+
+      if (category) filter.category = category;
+
+      const templates = await AssessmentTemplate.find(filter)
+        .select('name category description estimatedDuration totalResponses questionCount')
+        .sort({ category: 1, name: 1 });
+
+      res.json({
+        success: true,
+        message: 'Public assessment templates retrieved',
+        data: {
+          templates,
+          count: templates.length
+        }
+      });
+    } catch (error) {
+      logger.error('Get public templates error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve assessment templates'
+      });
+    }
+  },
+
+  // Get single public template to begin assessment (no auth required)
+  getPublicTemplateToBegin: async (req, res) => {
+    try {
+      const { templateId } = req.params;
+
+      if (!mongoose.Types.ObjectId.isValid(templateId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid template ID format'
+        });
+      }
+
+      const template = await AssessmentTemplate.findOne({
+        _id: templateId,
+        isPublished: true,
+        isActive: true
+      });
+
+      if (!template) {
+        return res.status(404).json({
+          success: false,
+          message: 'Assessment template not found or not available'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Assessment template retrieved. You can begin the assessment.',
+        data: {
+          template,
+          message: 'You can take this assessment as a guest or login for a personalized experience and to track your progress.'
+        }
+      });
+    } catch (error) {
+      logger.error('Get public template error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve assessment template'
+      });
+    }
+  },
+
+  // Submit assessment for guests or authenticated users (unified endpoint)
+  submitPublicAssessment: async (req, res) => {
+    try {
+      const { templateId, responses, shareWithCounselor, counselorId, userNotes } = req.body;
+      const userId = req.user ? req.user._id : null;
+      const isGuest = !userId;
+
+      if (!mongoose.Types.ObjectId.isValid(templateId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid template ID format'
+        });
+      }
+
+      // Get template
+      const template = await AssessmentTemplate.findOne({
+        _id: templateId,
+        isActive: true,
+        isPublished: true
+      });
+
+      if (!template) {
+        return res.status(404).json({
+          success: false,
+          message: 'Assessment template not found or not available'
+        });
+      }
+
+      // Calculate score
+      const { totalScore, scoredResponses } = await assessmentService.calculateScore(template, responses);
+
+      // Get severity level
+      const severityLevel = template.getSeverityLevel(totalScore);
+
+      // Detect crisis
+      const { isCrisis, crisisIndicators } = await assessmentService.detectCrisis(template, responses);
+
+      // Generate recommendations
+      const recommendations = await assessmentService.generateRecommendations(
+        template,
+        totalScore,
+        severityLevel?.name
+      );
+
+      // Create assessment response
+      const assessmentData = {
+        user: userId,
+        template: templateId,
+        templateSnapshot: {
+          name: template.name,
+          version: template.version,
+          category: template.category
+        },
+        responses: scoredResponses,
+        totalScore,
+        severityLevel: severityLevel?.name || 'Unknown',
+        isCrisis,
+        crisisIndicators,
+        status: 'completed',
+        completedAt: new Date(),
+        isAnonymous: isGuest,
+        shareWithCounselor: false, // Guests cannot share initially
+        userNotes,
+        recommendations
+      };
+
+      // Generate session ID for guest users
+      if (isGuest) {
+        assessmentData.sessionId = crypto.randomBytes(16).toString('hex');
+      } else {
+        // For authenticated users, handle counselor sharing
+        if (shareWithCounselor && counselorId && mongoose.Types.ObjectId.isValid(counselorId)) {
+          const counselor = await Counselor.findById(counselorId);
+          if (counselor) {
+            assessmentData.shareWithCounselor = true;
+            assessmentData.sharedWith = [{
+              counselor: counselorId,
+              sharedAt: new Date()
+            }];
+          }
+        }
+      }
+
+      const assessment = new AssessmentResponse(assessmentData);
+      await assessment.save();
+
+      // Update template usage stats
+      await AssessmentTemplate.findByIdAndUpdate(templateId, {
+        $inc: { totalResponses: 1 },
+        lastUsed: new Date()
+      });
+
+      // Handle follow-up actions for authenticated users
+      const followUpActions = [];
+
+      if (!isGuest) {
+        // Crisis response for authenticated users
+        if (isCrisis) {
+          await notificationController.createNotification(
+            userId,
+            'assessment_crisis',
+            'We\'re Here for You',
+            'Thank you for completing your assessment. Your responses show you may be going through a difficult time. You don\'t have to face this alone - support is available.',
+            {
+              assessment: assessment._id,
+              channels: ['inApp'],
+              priority: 'high'
+            }
+          );
+
+          // Notify counselor if shared
+          if (shareWithCounselor && counselorId) {
+            await notificationController.createNotification(
+              counselorId,
+              'assessment_crisis_shared',
+              'Urgent: High-Risk Assessment Shared',
+              `A user has shared a high-risk assessment with you that requires attention.`,
+              {
+                assessment: assessment._id,
+                user: userId,
+                channels: ['inApp'],
+                priority: 'high'
+              }
+            );
+
+            followUpActions.push({
+              action: 'counselor_notified',
+              performedAt: new Date(),
+              details: { counselorId }
+            });
+          }
+        }
+
+        // Regular counselor notification (if shared)
+        if (shareWithCounselor && counselorId && !isCrisis) {
+          await notificationController.createNotification(
+            counselorId,
+            'assessment_shared',
+            'New Assessment Shared',
+            `A user has shared their ${template.name} assessment with you.`,
+            {
+              assessment: assessment._id,
+              user: userId,
+              channels: ['inApp']
+            }
+          );
+
+          followUpActions.push({
+            action: 'counselor_notified',
+            performedAt: new Date(),
+            details: { counselorId }
+          });
+        }
+
+        // Save follow-up actions
+        if (followUpActions.length > 0) {
+          assessment.followUpActions = followUpActions;
+          await assessment.save();
+        }
+      }
+
+      logger.info(`Assessment completed: ${assessment._id} for template ${template.name} by ${isGuest ? 'guest' : 'user ' + userId}`);
+
+      // Prepare response
+      const responseData = {
+        assessment: {
+          id: assessment._id,
+          totalScore,
+          severityLevel: severityLevel?.name,
+          isCrisis,
+          recommendations,
+          completedAt: assessment.completedAt
+        }
+      };
+
+      // Add session ID for guests
+      if (isGuest) {
+        responseData.assessment.sessionId = assessment.sessionId;
+        responseData.message = 'Assessment submitted successfully as guest. To save and track your assessments, please create an account or login.';
+      } else {
+        responseData.message = 'Assessment submitted successfully';
+      }
+
+      res.status(201).json({
+        success: true,
+        ...responseData,
+        data: responseData
+      });
+    } catch (error) {
+      logger.error('Submit public assessment error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to submit assessment',
+        error: error.message
+      });
+    }
   }
 };
 
