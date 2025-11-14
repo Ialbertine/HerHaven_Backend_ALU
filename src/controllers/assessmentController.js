@@ -307,7 +307,7 @@ const assessmentController = {
         if (userId) {
           await notificationController.createNotification(
             userId,
-            'Assessment detected crisis',
+            'assessment_crisis',
             'We\'re Here for You',
             'Thank you for completing your assessment. Your responses show you may be going through a difficult time. You don\'t have to face this alone - support is available. Consider connecting with a counselor or reaching out to someone you trust.',
             {
