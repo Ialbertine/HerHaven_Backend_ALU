@@ -4,9 +4,10 @@ const communityPostSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
       maxlength: 200,
+      default: '',
     },
     content: {
       type: String,

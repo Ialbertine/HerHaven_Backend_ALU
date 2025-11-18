@@ -7,9 +7,8 @@ const createPostSchema = Joi.object({
     .trim()
     .min(3)
     .max(200)
-    .required()
+    .optional()
     .messages({
-      'string.empty': 'Title is required',
       'string.min': 'Title must be at least 3 characters long',
       'string.max': 'Title cannot exceed 200 characters'
     }),
@@ -166,7 +165,7 @@ const validateObjectId = (id) => {
 
 const sanitizeHtml = (text) => {
   if (!text) return '';
-  
+
   return text
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
