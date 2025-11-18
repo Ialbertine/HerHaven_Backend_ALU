@@ -758,16 +758,17 @@ const appointmentController = {
         )
         .toDate();
 
-      // it's time to start within 15 minutes of scheduled time
+      const allowedEarlyMinutes = 20;
+
+      // it's time to start within allowed minutes of scheduled time
       const now = new Date();
       const timeDiff = appointmentDateTime.getTime() - now.getTime();
       const minutesUntilStart = timeDiff / (1000 * 60);
 
-      if (minutesUntilStart > 15) {
+      if (minutesUntilStart > allowedEarlyMinutes) {
         return res.status(400).json({
           success: false,
-          message:
-            "Session can only be started 10 minutes before scheduled time",
+          message: `Session link can only be created ${allowedEarlyMinutes} minutes before the scheduled time`,
           debug: {
             appointmentTime: appointmentDateTime.toISOString(),
             currentTime: now.toISOString(),
