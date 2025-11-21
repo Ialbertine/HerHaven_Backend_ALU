@@ -49,8 +49,8 @@ describe('Authentication API', () => {
         return;
       }
       const userData = {
-        email: 'test@example.com',
-        username: 'testuser',
+        email: 'weakpass@example.com',
+        username: 'weakuser',
         password: 'weak'
       };
 
@@ -60,7 +60,8 @@ describe('Authentication API', () => {
         .expect(400);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.message).toContain('Password');
+      expect(response.body.message).toBe('Validation failed');
+      expect(response.body.errors).toBeDefined();
     });
 
     test('should reject duplicate email registration', async () => {
@@ -186,14 +187,16 @@ describe('Authentication API', () => {
       if (!isDbConnected()) {
         return;
       }
+      // Joi validation catches missing email first (returns 400, not 401)
       const response = await request(app)
         .post('/api/auth/login')
         .send({
           password: 'Test123456'
         })
-        .expect(401);
+        .expect(400);
 
       expect(response.body.success).toBe(false);
+      expect(response.body.message).toBe('Validation failed');
     });
   });
 
@@ -203,7 +206,7 @@ describe('Authentication API', () => {
         return;
       }
       const response = await request(app)
-        .post('/api/auth/continue-as-guest')
+        .post('/api/auth/guest')
         .send({
           userAgent: 'Mozilla/5.0',
           ipAddress: '127.0.0.1'

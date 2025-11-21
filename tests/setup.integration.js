@@ -11,6 +11,14 @@ const TEST_MONGODB_URI = process.env.MONGO_URI_TEST ||
 
 process.env.MONGO_URI = TEST_MONGODB_URI;
 
+// Set required environment variables for tests 
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing-only';
+}
+if (!process.env.JWT_EXPIRES_IN) {
+  process.env.JWT_EXPIRES_IN = '7d';
+}
+
 // Connect to test database before all tests
 beforeAll(async () => {
   try {
