@@ -37,6 +37,34 @@ Your role is to provide:
 
 Context: This is HerHaven, a safe space platform for women's mental health and support.`;
 
+const RWANDA_CRISIS_MESSAGE = `**Haven AI (Important):** I’m really sorry you’re feeling this way. Please reach out immediately to a trusted person or call one of these 24/7 Rwanda resources:
+
+- **National Suicide Prevention Lifeline:** 116
+- **Health Services Hotline:** 114
+- **IOSC Crisis Line:** 3029
+
+
+If you are in immediate danger, please contact local emergency services 112 or go to the nearest hospital.  
+You are not alone — you matter, you are valued, and help is available right now.`;
+
+const SELF_HARM_KEYWORDS = [
+  'suicide',
+  'kill myself',
+  'end my life',
+  'take my life',
+  'hurt myself',
+  'self harm',
+  'i want to die',
+  'i dont want to live',
+  'life is not worth',
+  'i should die'
+];
+
+const mentionsSelfHarm = (text = '') => {
+  const normalized = text.toLowerCase();
+  return SELF_HARM_KEYWORDS.some((keyword) => normalized.includes(keyword));
+};
+
 const chatController = {
   // Send message to chatbot and receive response
   sendMessage: async (req, res) => {
@@ -181,11 +209,21 @@ const chatController = {
         throw new Error('Empty response from AI service');
       }
 
+      const crisisDetected =
+        mentionsSelfHarm(message) ||
+        (Array.isArray(history) && history.some((msg) => mentionsSelfHarm(msg.content)));
+
+      const finalResponse = crisisDetected ? RWANDA_CRISIS_MESSAGE : responseText;
+
+      if (crisisDetected) {
+        logger.warn('Crisis response triggered for chat message');
+      }
+
       logger.info(`Chat interaction successful - Model: ${selectedModel}, User message: ${message.length} chars, Response: ${responseText.length} chars`);
 
       return res.json({
         success: true,
-        response: responseText,
+        response: finalResponse,
         timestamp: new Date().toISOString(),
         formatted: true
       });

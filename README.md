@@ -90,7 +90,7 @@ CLIENT_URL=http://localhost:5173
 # Database
 MONGO_URI=mongodb://localhost:27017/herhaven
 # OR for MongoDB Atlas:
-# MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/herhaven
+# MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<database>?retryWrites=true&w=majority
 
 # JWT
 JWT_SECRET=your-secret-key-here

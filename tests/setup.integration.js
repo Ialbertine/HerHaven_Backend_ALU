@@ -1,4 +1,3 @@
-// Integration test setup file - requires database
 process.env.NODE_ENV = 'test';
 
 require('dotenv').config({ quiet: true });
@@ -22,7 +21,6 @@ if (!process.env.JWT_EXPIRES_IN) {
 // Connect to test database before all tests
 beforeAll(async () => {
   try {
-    // Close any existing connections first
     if (mongoose.connection.readyState !== 0) {
       await mongoose.connection.close();
     }
@@ -30,7 +28,7 @@ beforeAll(async () => {
     await mongoose.connect(TEST_MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
     });
-  } catch (error) {
+  } catch {
     if (!process.env.DB_CONNECTION_WARNED) {
       process.env.DB_CONNECTION_WARNED = 'true';
     }
@@ -46,7 +44,7 @@ afterEach(async () => {
         await collections[key].deleteMany({});
       }
     }
-  } catch (error) {
+  } catch {
     // Ignore cleanup errors
   }
 });
@@ -58,7 +56,7 @@ afterAll(async () => {
       await mongoose.connection.dropDatabase();
       await mongoose.connection.close();
     }
-  } catch (error) {
+  } catch {
     // Ignore cleanup errors
   }
 }, 10000);
