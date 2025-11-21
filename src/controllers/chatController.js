@@ -37,7 +37,7 @@ Your role is to provide:
 
 Context: This is HerHaven, a safe space platform for women's mental health and support.`;
 
-const RWANDA_CRISIS_MESSAGE = `**Haven AI (Important):** I’m really sorry you’re feeling this way. Please reach out immediately to a trusted person or call one of these 24/7 Rwanda resources:
+const RWANDA_CRISIS_MESSAGE = `I’m really sorry you’re feeling this way. Please reach out immediately to a trusted person or call one of these 24/7 Rwanda resources:
 
 - **National Suicide Prevention Lifeline:** 116
 - **Health Services Hotline:** 114
@@ -45,7 +45,7 @@ const RWANDA_CRISIS_MESSAGE = `**Haven AI (Important):** I’m really sorry you�
 
 
 If you are in immediate danger, please contact local emergency services 112 or go to the nearest hospital.  
-You are not alone — you matter, you are valued, and help is available right now.`;
+You are not alone, you matter, you are valued, and help is available right now.`;
 
 const SELF_HARM_KEYWORDS = [
   'suicide',
