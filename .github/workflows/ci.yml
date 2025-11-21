@@ -10,6 +10,18 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     
+    # MongoDB service for integration tests
+    services:
+      mongodb:
+        image: mongo:latest
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -25,6 +37,12 @@ jobs:
         
       - name: Lint
         run: npm run lint
+        
+      - name: Run tests
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://localhost:27017/herhaven_test
+        run: npm test
         
       - name: Build
         run: npm run build
