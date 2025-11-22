@@ -61,8 +61,15 @@ const SELF_HARM_KEYWORDS = [
 ];
 
 const mentionsSelfHarm = (text = '') => {
+  if (!text || typeof text !== 'string') return false;
   const normalized = text.toLowerCase();
-  return SELF_HARM_KEYWORDS.some((keyword) => normalized.includes(keyword));
+  return SELF_HARM_KEYWORDS.some((keyword) => {
+    if (keyword.includes(' ')) {
+      return normalized.includes(keyword);
+    }
+    const wordBoundaryRegex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    return wordBoundaryRegex.test(normalized);
+  });
 };
 
 const chatController = {
@@ -209,9 +216,8 @@ const chatController = {
         throw new Error('Empty response from AI service');
       }
 
-      const crisisDetected =
-        mentionsSelfHarm(message) ||
-        (Array.isArray(history) && history.some((msg) => mentionsSelfHarm(msg.content)));
+      // Only check the current message for self-harm keywords, not the entire history
+      const crisisDetected = mentionsSelfHarm(message);
 
       const finalResponse = crisisDetected ? RWANDA_CRISIS_MESSAGE : responseText;
 
