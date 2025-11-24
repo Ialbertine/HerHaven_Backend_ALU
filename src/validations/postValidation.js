@@ -2,16 +2,20 @@ const Joi = require('joi');
 const mongoose = require('mongoose');
 
 // Validation schemas
-const createPostSchema = Joi.object({
-  title: Joi.string()
+const optionalTitleSchema = Joi.alternatives().try(
+  Joi.string().trim().length(0),
+  Joi.string()
     .trim()
     .min(3)
     .max(200)
-    .optional()
     .messages({
       'string.min': 'Title must be at least 3 characters long',
       'string.max': 'Title cannot exceed 200 characters'
-    }),
+    })
+);
+
+const createPostSchema = Joi.object({
+  title: optionalTitleSchema.optional(),
   content: Joi.string()
     .trim()
     .min(10)
@@ -30,11 +34,7 @@ const createPostSchema = Joi.object({
 });
 
 const updatePostSchema = Joi.object({
-  title: Joi.string()
-    .trim()
-    .min(3)
-    .max(200)
-    .optional(),
+  title: optionalTitleSchema.optional(),
   content: Joi.string()
     .trim()
     .min(10)
