@@ -8,9 +8,16 @@ const createPost = async (req, res) => {
   try {
     const { title, content, tags, isAnonymous } = req.body;
 
-    const sanitizedTitle = sanitizeHtml(title);
+    const sanitizedTitle =
+      typeof title === 'string' && title.trim().length > 0
+        ? sanitizeHtml(title)
+        : undefined;
     const sanitizedContent = sanitizeHtml(content);
-    const sanitizedTags = tags ? tags.map(tag => sanitizeHtml(tag)) : [];
+    const sanitizedTags = Array.isArray(tags)
+      ? tags
+          .filter(tag => typeof tag === 'string' && tag.trim().length > 0)
+          .map(tag => sanitizeHtml(tag))
+      : [];
 
     let author = null;
     let authorType = "guest";
@@ -41,15 +48,20 @@ const createPost = async (req, res) => {
       }
     }
 
-    const post = new CommunityPost({
-      title: sanitizedTitle,
+    const postData = {
       content: sanitizedContent,
       author,
       authorType,
       authorName,
       tags: sanitizedTags,
       isAnonymous: isAnonymous || false
-    });
+    };
+
+    if (sanitizedTitle !== undefined) {
+      postData.title = sanitizedTitle;
+    }
+
+    const post = new CommunityPost(postData);
 
     await post.save();
 
@@ -235,9 +247,20 @@ const updatePost = async (req, res) => {
     }
 
     // Sanitize and update fields
-    if (title) post.title = sanitizeHtml(title);
+    if (title !== undefined) {
+      post.title =
+        typeof title === 'string' && title.trim().length > 0
+          ? sanitizeHtml(title)
+          : '';
+    }
     if (content) post.content = sanitizeHtml(content);
-    if (tags) post.tags = tags.map(tag => sanitizeHtml(tag));
+    if (tags !== undefined) {
+      post.tags = Array.isArray(tags)
+        ? tags
+            .filter(tag => typeof tag === 'string' && tag.trim().length > 0)
+            .map(tag => sanitizeHtml(tag))
+        : [];
+    }
     if (isAnonymous !== undefined) post.isAnonymous = isAnonymous;
 
     // Update author name if user is authenticated and not anonymous
