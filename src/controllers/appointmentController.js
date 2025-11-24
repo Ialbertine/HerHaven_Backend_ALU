@@ -758,7 +758,7 @@ const appointmentController = {
         )
         .toDate();
 
-      const allowedEarlyMinutes = 20;
+      const allowedEarlyMinutes = 30;
 
       // it's time to start within allowed minutes of scheduled time
       const now = new Date();

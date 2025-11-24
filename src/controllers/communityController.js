@@ -6,12 +6,7 @@ const logger = require('../utils/logger');
 // Create a new post
 const createPost = async (req, res) => {
   try {
-    const { title, content, tags, isAnonymous } = req.body;
-
-    const sanitizedTitle =
-      typeof title === 'string' && title.trim().length > 0
-        ? sanitizeHtml(title)
-        : undefined;
+    const { content, tags, isAnonymous } = req.body;
     const sanitizedContent = sanitizeHtml(content);
     const sanitizedTags = Array.isArray(tags)
       ? tags
@@ -56,10 +51,6 @@ const createPost = async (req, res) => {
       tags: sanitizedTags,
       isAnonymous: isAnonymous || false
     };
-
-    if (sanitizedTitle !== undefined) {
-      postData.title = sanitizedTitle;
-    }
 
     const post = new CommunityPost(postData);
 
@@ -210,7 +201,7 @@ const getSinglePost = async (req, res) => {
 // PUT /api/community/posts/:id
 const updatePost = async (req, res) => {
   try {
-    const { title, content, tags, isAnonymous } = req.body;
+    const { content, tags, isAnonymous } = req.body;
     
     // Validate post ID
     if (!validateObjectId(req.params.id)) {
@@ -247,12 +238,6 @@ const updatePost = async (req, res) => {
     }
 
     // Sanitize and update fields
-    if (title !== undefined) {
-      post.title =
-        typeof title === 'string' && title.trim().length > 0
-          ? sanitizeHtml(title)
-          : '';
-    }
     if (content) post.content = sanitizeHtml(content);
     if (tags !== undefined) {
       post.tags = Array.isArray(tags)

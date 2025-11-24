@@ -2,13 +2,6 @@ const mongoose = require("mongoose");
 
 const communityPostSchema = new mongoose.Schema(
   {
-    title: {
-      type: String,
-      required: false,
-      trim: true,
-      maxlength: 200,
-      default: '',
-    },
     content: {
       type: String,
       required: true,
@@ -32,12 +25,15 @@ const communityPostSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    tags: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
+    tags: {
+      type: [
+        {
+          type: String,
+          trim: true,
+        },
+      ],
+      default: [],
+    },
     isAnonymous: {
       type: Boolean,
       default: false,
