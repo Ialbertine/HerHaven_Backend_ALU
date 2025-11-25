@@ -594,20 +594,20 @@ const appointmentController = {
         `Found ${bookedAppointments.length} booked appointments for ${date}`
       );
 
-      // Generate time slots from all availability slots
+      // Generate time slots from all availability slots 30-minute intervals
       let allGeneratedSlots = [];
 
       for (const slot of availabilitySlots) {
         const slotsForThisRange = generateTimeSlotsFromSchedule(
           slot.startTime,
           slot.endTime,
-          sessionDuration
+          30 
         );
         allGeneratedSlots = [...allGeneratedSlots, ...slotsForThisRange];
       }
 
       logger.info(
-        `Generated ${allGeneratedSlots.length} time slots with ${sessionDuration} min duration`
+        `Generated ${allGeneratedSlots.length} time slots with 30-minute intervals`
       );
 
       // Filter out slots that conflict with booked appointments
@@ -948,8 +948,10 @@ const appointmentController = {
 };
 
 // Helper function to generate time slots from schedule
+// Always generates 30-minute interval slots regardless of appointment duration
 function generateTimeSlotsFromSchedule(startTime, endTime, durationMinutes) {
   const slots = [];
+  const SLOT_INTERVAL = 30; // Always use 30-minute intervals
 
   const [startHour, startMinute] = startTime.split(":").map(Number);
   const [endHour, endMinute] = endTime.split(":").map(Number);
@@ -957,8 +959,9 @@ function generateTimeSlotsFromSchedule(startTime, endTime, durationMinutes) {
   let currentMinutes = startHour * 60 + startMinute;
   const endMinutes = endHour * 60 + endMinute;
 
+  // Generate slots in 30-minute intervals
   // Only generate slots that can fit within the schedule
-  while (currentMinutes + durationMinutes <= endMinutes) {
+  while (currentMinutes + SLOT_INTERVAL <= endMinutes) {
     const hours = Math.floor(currentMinutes / 60);
     const minutes = currentMinutes % 60;
     const timeString = `${String(hours).padStart(2, "0")}:${String(
@@ -967,11 +970,11 @@ function generateTimeSlotsFromSchedule(startTime, endTime, durationMinutes) {
 
     slots.push({
       time: timeString,
-      duration: durationMinutes,
+      duration: SLOT_INTERVAL, // Always 30 minutes for display
       available: true,
     });
 
-    currentMinutes += durationMinutes;
+    currentMinutes += SLOT_INTERVAL; // Increment by 30 minutes
   }
 
   return slots;
