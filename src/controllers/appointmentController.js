@@ -884,7 +884,7 @@ const appointmentController = {
       const appointment = await Appointment.findOne({
         _id: appointmentId,
         counselor: counselorId,
-        status: "in-progress",
+        status: { $in: ["confirmed", "in-progress"] },
       }).populate("user", "username email");
 
       if (!appointment) {
@@ -892,6 +892,35 @@ const appointmentController = {
           success: false,
           message: "Session not found or not in progress",
         });
+      }
+
+      // Gracefully handle sessions that never flipped to "in-progress"
+      if (appointment.status !== "in-progress") {
+        const appointmentDateTime = moment
+          .tz(
+            `${appointment.appointmentDate.toISOString().split("T")[0]} ${appointment.appointmentTime
+            }`,
+            "YYYY-MM-DD HH:mm",
+            "Africa/Harare"
+          )
+          .toDate();
+
+        const now = new Date();
+        const canForceStart =
+          appointment.meetingDetails?.isLinkReady && appointmentDateTime <= now;
+
+        if (!canForceStart) {
+          return res.status(400).json({
+            success: false,
+            message: "Session has not started yet. Please start it before ending.",
+          });
+        }
+
+        appointment.status = "in-progress";
+        appointment.startedAt =
+          appointment.startedAt ||
+          appointment.meetingDetails?.linkAvailableAt ||
+          appointmentDateTime;
       }
 
       appointment.status = "completed";
