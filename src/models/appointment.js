@@ -175,6 +175,13 @@ const appointmentSchema = new mongoose.Schema({
     recordingUrl: {
       type: String,
       trim: true
+    },
+    isLinkReady: {
+      type: Boolean,
+      default: false
+    },
+    linkAvailableAt: {
+      type: Date
     }
   },
 

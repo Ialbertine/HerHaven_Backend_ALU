@@ -602,7 +602,7 @@ const appointmentController = {
         const slotsForThisRange = generateTimeSlotsFromSchedule(
           slot.startTime,
           slot.endTime,
-          30 
+          30
         );
         allGeneratedSlots = [...allGeneratedSlots, ...slotsForThisRange];
       }
@@ -760,8 +760,6 @@ const appointmentController = {
         .toDate();
 
       const allowedEarlyMinutes = 30;
-
-      // it's time to start within allowed minutes of scheduled time
       const now = new Date();
       const timeDiff = appointmentDateTime.getTime() - now.getTime();
       const minutesUntilStart = timeDiff / (1000 * 60);
@@ -778,22 +776,65 @@ const appointmentController = {
         });
       }
 
-      const meetingDetails = {
-        meetingId: `session-${appointment._id}`,
-        meetingUrl: `https://meet.jit.si/herhaven-${appointment._id}-${crypto
-          .randomBytes(8)
-          .toString("hex")}`,
-        roomName: `herhaven-${appointment._id}`,
-        startTime: now.toISOString(),
-        duration: appointment.duration,
+      const ensureMeetingDetails = () => {
+        if (!appointment.meetingDetails || !appointment.meetingDetails.meetingUrl) {
+          appointment.meetingDetails = {
+            meetingId: `session-${appointment._id}`,
+            meetingUrl: `https://meet.jit.si/herhaven-${appointment._id}-${crypto
+              .randomBytes(8)
+              .toString("hex")}`,
+            roomName: `herhaven-${appointment._id}`,
+            startTime: appointmentDateTime.toISOString(),
+            duration: appointment.duration,
+          };
+        }
+        return appointment.meetingDetails;
       };
 
+      // If we're still before the scheduled start, only prepare the link.
+      if (minutesUntilStart > 0) {
+        const meetingDetails = ensureMeetingDetails();
+        meetingDetails.isLinkReady = true;
+        meetingDetails.linkAvailableAt =
+          meetingDetails.linkAvailableAt || now;
+
+        await appointment.save();
+
+        return res.json({
+          success: true,
+          message: "Session link is ready. Join together at the scheduled time.",
+          data: {
+            appointmentId: appointment._id,
+            status: appointment.status,
+            meetingDetails: appointment.meetingDetails,
+            linkAvailable: true,
+          },
+        });
+      }
+
+      if (appointment.status === "in-progress") {
+        return res.json({
+          success: true,
+          message: "Session already in progress",
+          data: {
+            appointmentId: appointment._id,
+            status: appointment.status,
+            startedAt: appointment.startedAt,
+            meetingDetails: appointment.meetingDetails,
+          },
+        });
+      }
+
+      const meetingDetails = ensureMeetingDetails();
+      meetingDetails.isLinkReady = true;
+      meetingDetails.linkAvailableAt =
+        meetingDetails.linkAvailableAt || now;
+
       appointment.status = "in-progress";
-      appointment.actualStartTime = now;
-      appointment.meetingDetails = meetingDetails;
+      appointment.startedAt = now;
       await appointment.save();
 
-      // Create notification for user
+      // Create notification for user (only when session truly begins)
       await notificationController.createNotification(
         appointment.user._id,
         "session_starting",
@@ -951,7 +992,7 @@ const appointmentController = {
 // Always generates 30-minute interval slots regardless of appointment duration
 function generateTimeSlotsFromSchedule(startTime, endTime) {
   const slots = [];
-  const SLOT_INTERVAL = 30; 
+  const SLOT_INTERVAL = 30;
 
   const [startHour, startMinute] = startTime.split(":").map(Number);
   const [endHour, endMinute] = endTime.split(":").map(Number);
@@ -969,7 +1010,7 @@ function generateTimeSlotsFromSchedule(startTime, endTime) {
 
     slots.push({
       time: timeString,
-      duration: SLOT_INTERVAL, 
+      duration: SLOT_INTERVAL,
       available: true,
     });
 
