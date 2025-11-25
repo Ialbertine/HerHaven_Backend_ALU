@@ -272,9 +272,11 @@ appointmentSchema.methods.canBeRescheduled = function () {
   return this.status === 'confirmed' && hoursUntilAppointment > 24;
 };
 
-// Pre-save middleware to validate appointment date
 appointmentSchema.pre('save', function (next) {
-  if (this.appointmentDate && this.appointmentTime) {
+  const shouldValidateDate =
+    this.isNew || this.isModified('appointmentDate') || this.isModified('appointmentTime');
+
+  if (shouldValidateDate && this.appointmentDate && this.appointmentTime) {
     const appointmentDateTime = this.appointmentDateTime;
     const now = new Date();
 
@@ -292,7 +294,7 @@ appointmentSchema.pre('save', function (next) {
     }
   }
 
-  next();
+  return next();
 });
 
 module.exports = mongoose.model('Appointment', appointmentSchema);
