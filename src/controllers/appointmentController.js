@@ -947,11 +947,10 @@ const appointmentController = {
   },
 };
 
-// Helper function to generate time slots from schedule
 // Always generates 30-minute interval slots regardless of appointment duration
-function generateTimeSlotsFromSchedule(startTime, endTime, durationMinutes) {
+function generateTimeSlotsFromSchedule(startTime, endTime) {
   const slots = [];
-  const SLOT_INTERVAL = 30; // Always use 30-minute intervals
+  const SLOT_INTERVAL = 30; 
 
   const [startHour, startMinute] = startTime.split(":").map(Number);
   const [endHour, endMinute] = endTime.split(":").map(Number);
@@ -960,7 +959,6 @@ function generateTimeSlotsFromSchedule(startTime, endTime, durationMinutes) {
   const endMinutes = endHour * 60 + endMinute;
 
   // Generate slots in 30-minute intervals
-  // Only generate slots that can fit within the schedule
   while (currentMinutes + SLOT_INTERVAL <= endMinutes) {
     const hours = Math.floor(currentMinutes / 60);
     const minutes = currentMinutes % 60;
@@ -970,11 +968,11 @@ function generateTimeSlotsFromSchedule(startTime, endTime, durationMinutes) {
 
     slots.push({
       time: timeString,
-      duration: SLOT_INTERVAL, // Always 30 minutes for display
+      duration: SLOT_INTERVAL, 
       available: true,
     });
 
-    currentMinutes += SLOT_INTERVAL; // Increment by 30 minutes
+    currentMinutes += SLOT_INTERVAL;
   }
 
   return slots;
